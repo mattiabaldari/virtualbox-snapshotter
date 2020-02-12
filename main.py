@@ -18,6 +18,28 @@ def check_arguments():
         return 1
     return sys.argv[1]
 
+def delete_last_snapshot(machine_name=None):
+
+    if machine_name:
+        virtual_machine = vbox.find_machine(machine_name)
+        try:
+            root_snapshot = virtual_machine.find_snapshot("")
+            child_id = str()
+            for child in root_snapshot.children:
+                children = virtual_machine.find_snapshot(child.name)
+                print("Deleting " + children.name)
+                child_id = children.id_p
+            virtual_machine.lock_machine(session, virtualbox.library.LockType(1))
+            
+            process = session.machine.delete_snapshot(child_id)
+            process.wait_for_completion(timeout=-1)
+            session.unlock_machine()
+        except:
+            print("Delete " + machine_name + " snapshot failed")
+            return
+    else:
+        print("machine_name is None")
+
 def create_snapshot(machine_name=None):
     vm_initial_status = 1  # zero means powered on
 
@@ -37,6 +59,9 @@ def create_snapshot(machine_name=None):
 
         process, unused_variable = session.machine.take_snapshot(snap_name, description, False)
         process.wait_for_completion(timeout=-1)
+        
+        if vm_initial_status:
+            session.unlock_machine()
     else:
         print("machine_name is None")
     
@@ -44,12 +69,11 @@ def create_snapshot(machine_name=None):
     
 def main():
     name = check_arguments()
+    delete_last_snapshot(name)
     vm_status = create_snapshot(name)
 
     if not vm_status:
         session.console.power_down()
-    session.unlock_machine()
-
 
 if __name__ == "__main__":
     main()
