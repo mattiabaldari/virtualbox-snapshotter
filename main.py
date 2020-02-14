@@ -34,6 +34,7 @@ def delete_last_snapshot(machine_name=None):
             process = session.machine.delete_snapshot(child_id)
             process.wait_for_completion(timeout=-1)
             session.unlock_machine()
+            print("Deleted " + children.name)
         except:
             print("Delete " + machine_name + " snapshot failed")
             return
@@ -57,8 +58,10 @@ def create_snapshot(machine_name=None):
             shared_lockType = virtualbox.library.LockType(1)
             machine.lock_machine(session, shared_lockType)
 
+        print("Snapshotting: " + description)
         process, unused_variable = session.machine.take_snapshot(snap_name, description, False)
         process.wait_for_completion(timeout=-1)
+        print("Snapshot successfully completed")
         
         if vm_initial_status:
             session.unlock_machine()
@@ -68,6 +71,7 @@ def create_snapshot(machine_name=None):
     return vm_initial_status
     
 def main():
+    print("Starting autosnapshotter script ...")
     name = check_arguments()
     delete_last_snapshot(name)
     vm_status = create_snapshot(name)
