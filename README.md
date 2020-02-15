@@ -2,6 +2,8 @@
 Python script to automatize the Virtualbox snapshot process
 
 # Installation process
+Youtube Guide: https://www.youtube.com/watch?v=uDEFQyu4MvM
+ 
 In order to function, this script requires the following step to be performed:
 
 **1. Install the VirtualBox SDK:** 
@@ -16,7 +18,7 @@ python vboxapisetup.py install
 python -m pip install -r requirements.txt
 ```
 
-Finished!
+Finished! 
 
 
 How to run:
