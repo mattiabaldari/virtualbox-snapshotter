@@ -24,17 +24,19 @@ def delete_last_snapshot(machine_name=None):
         virtual_machine = vbox.find_machine(machine_name)
         try:
             root_snapshot = virtual_machine.find_snapshot("")
-            child_id = str()
+            child_id_name = [ str(), str() ]
             for child in root_snapshot.children:
                 children = virtual_machine.find_snapshot(child.name)
-                print("Deleting " + children.name)
-                child_id = children.id_p
+                child_id_name[0] = children.id_p
+                child_id_name[1] = children.name
             virtual_machine.lock_machine(session, virtualbox.library.LockType(1))
             
-            process = session.machine.delete_snapshot(child_id)
+            process = session.machine.delete_snapshot(child_id_name[0])
             process.wait_for_completion(timeout=-1)
-            session.unlock_machine()
-            print("Deleted " + children.name)
+            #if machine.session_state == virtualbox.library.SessionState(2):  # SessionState(2) = Locked
+            #    if session.state == virtualbox.library.SessionState(2):
+            #        session.unlock_machine()
+            print("Deleted " + child_id_name[1])
         except:
             print("Delete " + machine_name + " snapshot failed")
             return
@@ -48,6 +50,8 @@ def create_snapshot(machine_name=None):
         machine = vbox.find_machine(machine_name)
         if machine.state == virtualbox.library.MachineState(1):  # MachineState(1) = PowerOff
             vm_initial_status = 0
+            if session.state == virtualbox.library.SessionState(2):
+                session.unlock_machine()
             proc = machine.launch_vm_process(session, "headless")
             proc.wait_for_completion(timeout=-1)
 
@@ -55,16 +59,21 @@ def create_snapshot(machine_name=None):
         description = "Daily Snapshot " + datetime.now().strftime("%d-%m-%Y")
         
         if vm_initial_status:
+            if machine.session_state == virtualbox.library.SessionState(2):  # SessionState(2) = Locked
+                # The first IF check wheter the machine is in locked session, the second one checks if
+                # the session is locked
+                if session.state == virtualbox.library.SessionState(2):
+                    session.unlock_machine()
             shared_lockType = virtualbox.library.LockType(1)
             machine.lock_machine(session, shared_lockType)
 
-        print("Snapshotting: " + description)
         process, unused_variable = session.machine.take_snapshot(snap_name, description, False)
         process.wait_for_completion(timeout=-1)
-        print("Snapshot successfully completed")
+        print("Created: " + description)
         
         if vm_initial_status:
-            session.unlock_machine()
+            if session.state == virtualbox.library.SessionState(2):
+                session.unlock_machine()
     else:
         print("machine_name is None")
     
