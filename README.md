@@ -38,3 +38,19 @@ In order to automatize the backup process use the following guides:
 * [[Win-10] Task scheduler](https://www.windowscentral.com/how-create-automated-task-using-task-scheduler-windows-10)
 
 * [[Linux] Crontab](https://askubuntu.com/questions/2368/how-do-i-set-up-a-cron-job)
+
+----------------------------------------
+### Notes
+
+* **Deletion error**
+ 
+    The first time you run the script it could raise an error in the deletion phase.
+    That's normal if you do not have any snapshot, therefore nothing to delete.
+    Don't pay attention to it, it will disappear from the second run on.
+    
+* **Snapshot retention**
+    The script deletes and creates a snapshot every time it runs.
+    Therefore if the VM has 2 snapshots (or more) at the run 
+    moment, then the VM will continue to have 2 snapshots.
+    The only exception is when the VM has no snapshots and the script 
+    produce the first of them.
