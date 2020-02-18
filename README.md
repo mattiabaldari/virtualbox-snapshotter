@@ -13,6 +13,9 @@ In order to function, this script requires the following step to be performed:
 ```
 python -m pip install -r requirements.txt
 ```
+Remember to run the installation command from within the project directory:
+![](guide-images/requirements.png?raw=true "Requirements")
+
 
 The installation process is over. To run the script:
 ```
