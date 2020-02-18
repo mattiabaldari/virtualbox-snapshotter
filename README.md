@@ -33,7 +33,7 @@ python main.py "name_of_your_virtualbox_vm"
 ----------------------------------------
 ### Schedule
 
-**In order to  the backup process use the following guides:**
+In order to automatize the backup process use the following guides:
 
 * [[Win-10] Task scheduler](https://www.windowscentral.com/how-create-automated-task-using-task-scheduler-windows-10)
 
