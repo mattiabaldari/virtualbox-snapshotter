@@ -24,19 +24,29 @@ def delete_last_snapshot(machine_name=None):
         virtual_machine = vbox.find_machine(machine_name)
         try:
             root_snapshot = virtual_machine.find_snapshot("")
-            child_id_name = [ str(), str() ]
-            for child in root_snapshot.children:
-                children = virtual_machine.find_snapshot(child.name)
-                child_id_name[0] = children.id_p
-                child_id_name[1] = children.name
-            virtual_machine.lock_machine(session, virtualbox.library.LockType(1))
-            
-            process = session.machine.delete_snapshot(child_id_name[0])
-            process.wait_for_completion(timeout=-1)
-            #if machine.session_state == virtualbox.library.SessionState(2):  # SessionState(2) = Locked
-            #    if session.state == virtualbox.library.SessionState(2):
-            #        session.unlock_machine()
-            print("Deleted " + child_id_name[1])
+            idx = 0
+            #children = root_snapshot.children
+            current_snapshot = root_snapshot
+            first_snapshot = list()
+            last_snapshot = str()
+
+            while True:
+                children = current_snapshot.children
+                for child in children:
+                    snapshot_child = virtual_machine.find_snapshot(child.id_p)
+                if idx == 0:
+                    first_snapshot = snapshot_child.id_p, snapshot_child.name
+                    idx += 1
+                last_snapshot = snapshot_child.id_p
+                if snapshot_child.children_count == 0:
+                    break
+                current_snapshot = snapshot_child
+
+            if first_snapshot[0] != last_snapshot:
+                virtual_machine.lock_machine(session, virtualbox.library.LockType(1))
+                process = session.machine.delete_snapshot(first_snapshot[0])
+                process.wait_for_completion(timeout=-1)
+                print("Deleted " + first_snapshot[1])
         except:
             print("Delete " + machine_name + " snapshot failed")
             return
