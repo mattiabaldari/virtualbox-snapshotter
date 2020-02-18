@@ -12,7 +12,7 @@ In order to function, this script requires the following step to be performed:
 
 **3. Open a CMD terminal and go into the project directory**
 
-**3.  install the requirements file:**
+**4. Install the requirements file:**
 ```
 python -m pip install -r requirements.txt
 ```
@@ -20,10 +20,15 @@ Remember to run the installation command from within the project directory:
 ![](guide-images/requirements.png?raw=true "Requirements")
 
 
+----------------------------------------
+
+
 The installation process is over. To run the script:
 ```
 python main.py "name_of_your_virtualbox_vm"
 ```
+
+----------------------------------------
 
 
 **In order to automatize the backup process use the following guides:**
