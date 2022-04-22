@@ -1,6 +1,9 @@
-**BE CAREFUL: **
+**BE CAREFUL**
+
 ![](../guide-images/no_longer_supported.png?raw=true "No_Longer")
 
+
+---
 To Install the VirtualBox SDK: 
 
 **1. Go to VirtualBox’s download [page](https://www.virtualbox.org/wiki/Downloads) 
