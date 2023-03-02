@@ -65,39 +65,36 @@ def delete_oldest_snapshots(machine_name : str, number_to_retain : int):
     except Exception as ex:
         print(f"Snapshot deletion aborted prematurely due to following exception: {ex}")
 
-def create_snapshot(machine_name=None):
+def create_snapshot(machine_name : str):
     vm_initial_status = 1  # zero means powered on
 
-    if machine_name:
-        machine = vbox.find_machine(machine_name)
-        if machine.state == virtualbox.library.MachineState(1):  # MachineState(1) = PowerOff
-            vm_initial_status = 0
+    machine = vbox.find_machine(machine_name)
+    if machine.state == virtualbox.library.MachineState(1):  # MachineState(1) = PowerOff
+        vm_initial_status = 0
+        if session.state == virtualbox.library.SessionState(2):
+            session.unlock_machine()
+        proc = machine.launch_vm_process(session, "headless")
+        proc.wait_for_completion(timeout=-1)
+
+    snap_name = "Regular Snapshot " + datetime.now().strftime("%d-%m-%Y")
+    description = "Regular Snapshot taken on " + datetime.now().strftime("%d-%m-%Y") + " via virtualbox-snapshotter"
+    
+    if vm_initial_status:
+        if machine.session_state == virtualbox.library.SessionState(2):  # SessionState(2) = Locked
+            # The first IF check wheter the machine is in locked session, the second one checks if
+            # the session is locked
             if session.state == virtualbox.library.SessionState(2):
                 session.unlock_machine()
-            proc = machine.launch_vm_process(session, "headless")
-            proc.wait_for_completion(timeout=-1)
+        shared_lockType = virtualbox.library.LockType(1)
+        machine.lock_machine(session, shared_lockType)
 
-        snap_name = datetime.now().strftime("%d-%m-%Y")
-        description = "Daily Snapshot " + datetime.now().strftime("%d-%m-%Y")
-        
-        if vm_initial_status:
-            if machine.session_state == virtualbox.library.SessionState(2):  # SessionState(2) = Locked
-                # The first IF check wheter the machine is in locked session, the second one checks if
-                # the session is locked
-                if session.state == virtualbox.library.SessionState(2):
-                    session.unlock_machine()
-            shared_lockType = virtualbox.library.LockType(1)
-            machine.lock_machine(session, shared_lockType)
-
-        process, unused_variable = session.machine.take_snapshot(snap_name, description, False)
-        process.wait_for_completion(timeout=-1)
-        print("Created: " + description)
-        
-        if vm_initial_status:
-            if session.state == virtualbox.library.SessionState(2):
-                session.unlock_machine()
-    else:
-        print("machine_name is None")
+    process, unused_variable = session.machine.take_snapshot(snap_name, description, False)
+    process.wait_for_completion(timeout=-1)
+    print("Created: " + snap_name)
+    
+    if vm_initial_status:
+        if session.state == virtualbox.library.SessionState(2):
+            session.unlock_machine()
     
     return vm_initial_status
     
@@ -133,10 +130,10 @@ def main():
 
     print("Starting autosnapshotter script ...")
     delete_oldest_snapshots(args.machine_name, args.retain)
-    # vm_status = create_snapshot(name)
+    vm_status = create_snapshot(args.machine_name)
 
-    # if not vm_status:
-    #     session.console.power_down()
+    if not vm_status:
+        session.console.power_down()
 
 if __name__ == "__main__":
     main()
