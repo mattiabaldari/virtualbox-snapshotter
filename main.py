@@ -7,7 +7,7 @@ vbox = virtualbox.VirtualBox()
 session = virtualbox.Session()
 
 
-def delete_oldest_snapshots(machine_name: str, number_to_retain: int):
+def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
     """
     Attempts to delete oldests snapshots from specified machine.
 
@@ -67,38 +67,61 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int):
         print(f"Snapshot deletion aborted prematurely due to following exception: {ex}")
 
 
-def create_snapshot(machine_name: str):
-    vm_initial_status = 1  # zero means powered on
+def create_snapshot(machine_name: str) -> bool:
+    """
+    Attempts to create a snapshot for specified machine.
 
-    machine = vbox.find_machine(machine_name)
-    if machine.state == virtualbox.library.MachineState(1):  # MachineState(1) = PowerOff
-        vm_initial_status = 0
+    in machine_name of type str
+        Machine name to search for.
+
+    return vm_running_initally of type bool
+        Status if machine was in any state but "Powered Off" initally
+    """
+    # Assuming that machine is initally in any state but not in "Powered Off"
+    vm_running_initally = True
+
+    virtual_machine = vbox.find_machine(machine_name)
+    if virtual_machine.state == virtualbox.library.MachineState(1):
+        # Check if machine is powered off (MachineState(1) = PowerOff)
+        vm_running_initally = False
+
         if session.state == virtualbox.library.SessionState(2):
+            # Check if session is locked (SessionState(2) = Locked)
             session.unlock_machine()
-        proc = machine.launch_vm_process(session, "headless")
+
+        # Locks virtual machine from writes
+        proc = virtual_machine.launch_vm_process(session, "headless", [])
         proc.wait_for_completion(timeout=-1)
 
+    # Creating snapshot name and description
     snap_name = "Regular Snapshot " + datetime.now().strftime("%d-%m-%Y")
     description = "Regular Snapshot taken on " + datetime.now().strftime("%d-%m-%Y") + " via virtualbox-snapshotter"
 
-    if vm_initial_status:
-        if machine.session_state == virtualbox.library.SessionState(2):  # SessionState(2) = Locked
-            # The first IF check wheter the machine is in locked session, the second one checks if
-            # the session is locked
+    if vm_running_initally:
+        # Check if inital state of a machine was anything but "Powered Off"
+        if virtual_machine.session_state == virtualbox.library.SessionState(2):
+            # Check if VM session is locked (SessionState(2) = Locked)
             if session.state == virtualbox.library.SessionState(2):
+                # Check if current session is locked (SessionState(2) = Locked)
                 session.unlock_machine()
-        shared_lock_type = virtualbox.library.LockType(1)
-        machine.lock_machine(session, shared_lock_type)
 
-    process, unused_variable = session.machine.take_snapshot(snap_name, description, False)
+        # Locking machine to allow making changes
+        shared_lock_type = virtualbox.library.LockType(1)
+        virtual_machine.lock_machine(session, shared_lock_type)
+
+    # Taking snapshot
+    process, _ = session.machine.take_snapshot(snap_name, description, False)
     process.wait_for_completion(timeout=-1)
+
     print("Created: " + snap_name)
 
-    if vm_initial_status:
+    if vm_running_initally:
+        # Check if inital state of a machine was anything but "Powered Off"
         if session.state == virtualbox.library.SessionState(2):
+            # Check if session is locked
             session.unlock_machine()
 
-    return vm_initial_status
+    return vm_running_initally
 
 
 def main():
@@ -111,7 +134,7 @@ def main():
                         action="store",
                         help="(Required) Virtual Machine (VM) name enclosed in double quotes (\").\
                             Not using double quotes may lead to abnormal behaviour if name contains whitespaces.",
-                        metavar="\"VM NAME\"",
+                        metavar="\"VM_NAME\"",
                         type=str,
                         required=True
                         )
@@ -120,8 +143,8 @@ def main():
                         choices=range(0, 1000),
                         default=3,
                         help="Number of latest snapshots to retain.\
-                            If 0 is provided - deletes all snapshots leaving just the Currrent State one.\
-                            If argument is not provided, defaults to 3.",
+                              If 0 is provided - deletes all snapshots leaving just the Currrent State one.\
+                              If argument is not provided, defaults to 3.",
                         metavar="(0-1000)",
                         type=int,
                         required=False,
