@@ -6,6 +6,7 @@ max-line-length: 120
 #test-warnings: true
 ignore-paths:
   - .vscode
+  - .venv
   - guide-images
   - VirtualBox-SDK
 pep8:
