@@ -191,8 +191,12 @@ def main():
     delete_oldest_snapshots(args.machine_name, args.retain)
     vm_status = create_snapshot(args.machine_name)
 
-    if not vm_status:
-        session.console.power_down()
+    try:
+        if not vm_status:
+            session.console.power_down()
+    except Exception as ex:
+        print(f"Power down of virtual machine execution exited prematurely with following exception: {ex}")
+        return
 
 
 if __name__ == "__main__":
