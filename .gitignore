@@ -1,2 +1,6 @@
+# Ignoring IDE files
 .vscode/
 .idea/
+
+# Ignoring python venv
+*venv*
