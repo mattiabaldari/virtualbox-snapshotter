@@ -1,95 +1,195 @@
-import argparse
-import virtualbox
 from datetime import datetime
+import argparse
+
+import virtualbox
 
 vbox = virtualbox.VirtualBox()
 session = virtualbox.Session()
 
-def delete_last_snapshot(machine_name):
+parser = argparse.ArgumentParser(prog="VirtualBox Snapshotter",
+                                 description="Takes new snapshots and deletes old ones\
+                                             for specified Virtual Machine.",
+                                 epilog="Currently, multi children are not supported.\
+                                        Nested children are supported.")
+parser.add_argument("machine_name",
+                    action="store",
+                    help="(Required) Virtual Machine (VM) name enclosed in double quotes (\").\
+                         Not using double quotes may lead to abnormal behaviour if name contains whitespaces.",
+                    metavar="\"VIRTUAL_MACHINE_NAME\"",
+                    type=str)
+
+parser.add_argument("-r", "--retain",
+                    action="store",
+                    choices=range(0, 1000),
+                    default=3,
+                    help="Number of latest snapshots to retain.\
+                         If 0 is provided - deletes all snapshots leaving just the latest one.\
+                         If argument is not provided, defaults to 3.",
+                    metavar="(0-1000)",
+                    type=int,
+                    required=False)
+
+parser.add_argument("-v", "--verbose",
+                    action="store_true",
+                    help="Adds verbosity",
+                    required=False)
+
+parser.add_argument("-n", "--name",
+                    action="store",
+                    help="Custom name for a snapshot.\
+                         If argument is not provided, defaults to 'Regular Snapshot DATE'",
+                    metavar="\"CUSTOM_NAME\"",
+                    type=str,
+                    default="Regular Snapshot",
+                    required=False)
+
+parser.add_argument("-d", "--description",
+                    action="store",
+                    help="Custom description for a snapshot.\
+                         If argument is not provided, defaults to \
+                         'Regular Snapshot taken on DATE via virtualbox-snapshotter'",
+                    metavar="\"CUSTOM_DESCRIPTION\"",
+                    type=str,
+                    default="Regular Snapshot taken on",
+                    required=False)
+args = parser.parse_args()
+
+
+# pylint: disable=too-many-branches
+def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
+    """
+    Attempts to delete oldests snapshots from specified machine.
+
+    in machine_name of type str
+        Machine name to search for.
+
+    in number_to_retain of type int
+        Number of newest snapshots to retain.
+
+    """
     try:
+        # Trying to find a machine
         virtual_machine = vbox.find_machine(machine_name)
-        root_snapshot = virtual_machine.find_snapshot("")
-        idx = 0
-        #children = root_snapshot.children
-        current_snapshot = root_snapshot
-        first_snapshot = list()
-        last_snapshot = str()
 
-        while True:
-            children = current_snapshot.children
-            for child in children:
-                snapshot_child = virtual_machine.find_snapshot(child.id_p)
-            if idx == 0:
-                first_snapshot = snapshot_child.id_p, snapshot_child.name
-                idx += 1
-            last_snapshot = snapshot_child.id_p
-            if snapshot_child.children_count == 0:
-                break
-            current_snapshot = snapshot_child
+        # Snapshot ids[0] and names[1] sorted from oldest (index - 0) to newest (index - higest)
+        snapshot_details = []
+        # Getting root snapshot and adding it to a list
+        snapshot = virtual_machine.find_snapshot("")
+        snapshot_details.append([snapshot.id_p, snapshot.name])
 
-        if first_snapshot[0] != last_snapshot:
-            virtual_machine.lock_machine(session, virtualbox.library.LockType(1))
-            process = session.machine.delete_snapshot(first_snapshot[0])
+        # Traversing through children snapshots (until one has no children) and adding them to a list
+        while snapshot.children_count != 0:
+            # TODO: Implement multi children scan
+            # This check skips snapshot marked as "Current State"
+            snapshot = snapshot.children[0]
+            snapshot_details.append([snapshot.id_p, snapshot.name])
+
+        if args.verbose:
+            print("Overall list of snapshot:")
+            for snapshot in snapshot_details:
+                print(f"Snapshot ID: {snapshot[0]} Name: {snapshot[1]}")
+
+        if number_to_retain > len(snapshot_details):
+            print("Number of snapshots to be retained is bigger then number of available snapshots. \
+                  Snapshot deletion aborted.")
+            return
+
+        # Removing number of snapshots from the list of snapshots to be deleted
+        snapshot_details = snapshot_details[:len(snapshot_details) - number_to_retain]
+
+        if args.verbose:
+            print("List of snapshots to be deleted:")
+
+        if len(snapshot_details) == 0:
+            # In case all existing snapshots to be retained
+            if args.verbose:
+                print("None")
+            return
+
+        if args.verbose:
+            for snapshot in snapshot_details:
+                print(f"Snapshot ID: {snapshot[0]} Name: {snapshot[1]}")
+
+        # Locking VM
+        virtual_machine.lock_machine(session, virtualbox.library.LockType(1))
+        for snapshot in snapshot_details:
+            # Deleting snapshot by using Snapshot ID
+            process = session.machine.delete_snapshot(snapshot[0])
+            if args.verbose:
+                print(f"Deleting snapshot: '{snapshot[1]}'...")
             process.wait_for_completion(timeout=-1)
-            print("Deleted " + first_snapshot[1])
+            if args.verbose:
+                print(f"Deleted snapshot: '{snapshot[1]}'")
     except Exception as ex:
-        print(f"Snapshot deletion exited prematurely with following exception: {ex}")
-        return
+        print(f"Snapshot deletion aborted prematurely due to following exception: {ex}")
 
-def create_snapshot(machine_name):
-    vm_initial_status = 1  # zero means powered on
-    try:
-        machine = vbox.find_machine(machine_name)
-        if machine.state == virtualbox.library.MachineState(1):  # MachineState(1) = PowerOff
-            vm_initial_status = 0
+
+def create_snapshot(machine_name: str) -> bool:
+    """
+    Attempts to create a snapshot for specified machine.
+
+    in machine_name of type str
+        Machine name to search for.
+
+    return vm_running_initally of type bool
+        Status if machine was in any state but "Powered Off" initally
+    """
+    # Assuming that machine is initally in any state but not in "Powered Off"
+    vm_running_initally = True
+
+    virtual_machine = vbox.find_machine(machine_name)
+    if virtual_machine.state == virtualbox.library.MachineState(1):
+        # Check if machine is powered off (MachineState(1) = PowerOff)
+        vm_running_initally = False
+
+        if session.state == virtualbox.library.SessionState(2):
+            # Check if session is locked (SessionState(2) = Locked)
+            session.unlock_machine()
+
+        # Locks virtual machine from writes
+        proc = virtual_machine.launch_vm_process(session, "headless", [])
+        proc.wait_for_completion(timeout=-1)
+
+    # Creating snapshot name and description
+    snap_name = f"{args.name} {datetime.now().strftime('%d-%m-%Y')}"
+    description = f"{args.description} {datetime.now().strftime('%d-%m-%Y')} via virtualbox-snapshotter"
+
+    if vm_running_initally:
+        # Check if inital state of a machine was anything but "Powered Off"
+        if virtual_machine.session_state == virtualbox.library.SessionState(2):
+            # Check if VM session is locked (SessionState(2) = Locked)
             if session.state == virtualbox.library.SessionState(2):
+                # Check if current session is locked (SessionState(2) = Locked)
                 session.unlock_machine()
-            proc = machine.launch_vm_process(session, "headless")
-            proc.wait_for_completion(timeout=-1)
 
-        snap_name = datetime.now().strftime("%d-%m-%Y")
-        description = "Daily Snapshot " + datetime.now().strftime("%d-%m-%Y")
-        
-        if vm_initial_status:
-            if machine.session_state == virtualbox.library.SessionState(2):  # SessionState(2) = Locked
-                # The first IF check wheter the machine is in locked session, the second one checks if
-                # the session is locked
-                if session.state == virtualbox.library.SessionState(2):
-                    session.unlock_machine()
-            shared_lockType = virtualbox.library.LockType(1)
-            machine.lock_machine(session, shared_lockType)
+        # Locking machine to allow making changes
+        shared_lock_type = virtualbox.library.LockType(1)
+        virtual_machine.lock_machine(session, shared_lock_type)
 
-        process, unused_variable = session.machine.take_snapshot(snap_name, description, False)
-        process.wait_for_completion(timeout=-1)
-        print("Created: " + description)
-        
-        if vm_initial_status:
-            if session.state == virtualbox.library.SessionState(2):
-                session.unlock_machine()
-    except Exception as ex:
-        print(f"Snapshot creation exited prematurely with following exception: {ex}")
-        # This will skip power down of machine on failure
-        return 1
-    
-    return vm_initial_status
-    
+    if args.verbose:
+        print(f"Creating snapshot: '{snap_name}'...")
+    # Taking snapshot
+    process, _ = session.machine.take_snapshot(snap_name, description, False)
+    process.wait_for_completion(timeout=-1)
+
+    if args.verbose:
+        print(f"Created snapshot: '{snap_name}'")
+
+    if vm_running_initally:
+        # Check if inital state of a machine was anything but "Powered Off"
+        if session.state == virtualbox.library.SessionState(2):
+            # Check if session is locked
+            session.unlock_machine()
+
+    return vm_running_initally
+
+
 def main():
-    parser = argparse.ArgumentParser(
-                    prog = "VirtualBox Snapshotter",
-                    description = "Takes new snapshot and deletes old one\
-                    for specified Virtual Machine (VM).",
-                    epilog="Get the latest release of VirtualBox Snapshotter from: https://github.com/Meru3m/virtualbox-snapshotter")
-    parser.add_argument("vm_name",
-                        action="store",
-                        help="Virtual Machine (VM) name enclosed in double quotes (i.e. \"Awesome Virtual Machine\").\
-                            Not using double quotes may lead to abnormal behaviour if name contains whitespaces.",
-                        metavar="\"VM_NAME\"",
-                        type=str
-                        )
-    args = parser.parse_args()
-    print("Starting autosnapshotter script ...")
-    delete_last_snapshot(args.vm_name)
-    vm_status = create_snapshot(args.vm_name)
+    if args.verbose:
+        print("Starting autosnapshotter script ...")
+
+    delete_oldest_snapshots(args.machine_name, args.retain)
+    vm_status = create_snapshot(args.machine_name)
 
     try:
         if not vm_status:
@@ -97,6 +197,7 @@ def main():
     except Exception as ex:
         print(f"Power down of virtual machine execution exited prematurely with following exception: {ex}")
         return
+
 
 if __name__ == "__main__":
     main()

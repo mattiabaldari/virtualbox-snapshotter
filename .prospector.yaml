@@ -1,0 +1,46 @@
+autodetect: false
+inherits:
+  - strictness_veryhigh
+max-line-length: 120
+#doc-warnings: true
+#test-warnings: true
+ignore-paths:
+  - .vscode
+  - .venv
+  - guide-images
+  - VirtualBox-SDK
+pep8:
+  full: true
+pydocstyle:
+  full: true
+  disable:
+    # Google Python Style Guide
+    # https://google.github.io/styleguide/pyguide.html
+    # D213 was re-enabled and D212 was disabled instead
+    - D203 # 1 blank line required before class docstring
+    - D204 # 1 blank line required after class docstring
+    - D212 # Multi-line docstring summary should start at the first line
+    - D215 # Section underline is over-indented
+    - D400 # First line should end with a period
+    - D401 # First line should be in imperative mood
+    - D404 # First word of the docstring should not be This
+    - D406 # Section name should end with a newline
+    - D407 # Missing dashed underline after section
+    - D408 # Section underline should be in the line following the section's name
+    - D409 # Section underline should match the length of its name
+    - D413 # Missing blank line after last section
+    # Custom rules
+    - D100 # Missing docstring in public module
+    - D104 # Missing docstring in public package
+pylint:
+  options:
+    min-public-methods: 1
+  disable:
+    - C0114 # Missing-module-docstring / Missing module docstring
+    # Needs further reviewing
+    - W0718 # Catching too general exception
+mccabe:
+  disable:
+    # Temporary disable while inline skipping is unsupported
+    # https://github.com/PyCQA/prospector/issues/310
+    - MC0001 # Function is too complex
