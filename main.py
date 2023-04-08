@@ -11,13 +11,12 @@ parser = argparse.ArgumentParser(prog="VirtualBox Snapshotter",
                                              for specified Virtual Machine.",
                                  epilog="Currently, multi children are not supported.\
                                         Nested children are supported.")
-parser.add_argument("-m", "--machine-name",
+parser.add_argument("machine_name",
                     action="store",
                     help="(Required) Virtual Machine (VM) name enclosed in double quotes (\").\
                          Not using double quotes may lead to abnormal behaviour if name contains whitespaces.",
-                    metavar="\"VM_NAME\"",
-                    type=str,
-                    required=True)
+                    metavar="\"VIRTUAL_MACHINE_NAME\"",
+                    type=str)
 
 parser.add_argument("-r", "--retain",
                     action="store",
@@ -37,10 +36,21 @@ parser.add_argument("-v", "--verbose",
 
 parser.add_argument("-n", "--name",
                     action="store",
-                    help="Custom name for a snapshot (date will be added after it)",
+                    help="Custom name for a snapshot.\
+                         If argument is not provided, defaults to 'Regular Snapshot DATE'",
                     metavar="\"CUSTOM_NAME\"",
                     type=str,
                     default="Regular Snapshot",
+                    required=False)
+
+parser.add_argument("-d", "--description",
+                    action="store",
+                    help="Custom description for a snapshot.\
+                         If argument is not provided, defaults to \
+                         'Regular Snapshot taken on DATE via virtualbox-snapshotter'",
+                    metavar="\"CUSTOM_DESCRIPTION\"",
+                    type=str,
+                    default="Regular Snapshot taken on",
                     required=False)
 args = parser.parse_args()
 
@@ -142,7 +152,7 @@ def create_snapshot(machine_name: str) -> bool:
 
     # Creating snapshot name and description
     snap_name = f"{args.name} {datetime.now().strftime('%d-%m-%Y')}"
-    description = "Regular Snapshot taken on " + datetime.now().strftime("%d-%m-%Y") + " via virtualbox-snapshotter"
+    description = f"{args.description} {datetime.now().strftime('%d-%m-%Y')} via virtualbox-snapshotter"
 
     if vm_running_initally:
         # Check if inital state of a machine was anything but "Powered Off"
