@@ -34,6 +34,14 @@ parser.add_argument("-v", "--verbose",
                     action="store_true",
                     help="Adds verbosity",
                     required=False)
+
+parser.add_argument("-n", "--name",
+                    action="store",
+                    help="Custom name for a snapshot (date will be added after it)",
+                    metavar="\"CUSTOM_NAME\"",
+                    type=str,
+                    default="Regular Snapshot",
+                    required=False)
 args = parser.parse_args()
 
 
@@ -133,7 +141,7 @@ def create_snapshot(machine_name: str) -> bool:
         proc.wait_for_completion(timeout=-1)
 
     # Creating snapshot name and description
-    snap_name = "Regular Snapshot " + datetime.now().strftime("%d-%m-%Y")
+    snap_name = f"{args.name} {datetime.now().strftime('%d-%m-%Y')}"
     description = "Regular Snapshot taken on " + datetime.now().strftime("%d-%m-%Y") + " via virtualbox-snapshotter"
 
     if vm_running_initally:
