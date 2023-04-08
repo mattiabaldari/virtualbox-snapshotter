@@ -24,7 +24,7 @@ parser.add_argument("-r", "--retain",
                     choices=range(0, 1000),
                     default=3,
                     help="Number of latest snapshots to retain.\
-                         If 0 is provided - deletes all snapshots leaving just the Currrent State one.\
+                         If 0 is provided - deletes all snapshots leaving just the latest one.\
                          If argument is not provided, defaults to 3.",
                     metavar="(0-1000)",
                     type=int,
@@ -32,7 +32,7 @@ parser.add_argument("-r", "--retain",
 
 parser.add_argument("-v", "--verbose",
                     action="store_true",
-                    help="Adds verbose",
+                    help="Adds verbosity",
                     required=False)
 args = parser.parse_args()
 
