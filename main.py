@@ -6,7 +6,38 @@ import virtualbox
 vbox = virtualbox.VirtualBox()
 session = virtualbox.Session()
 
+parser = argparse.ArgumentParser(prog="VirtualBox Snapshotter",
+                                 description="Takes new snapshots and deletes old ones\
+                                             for specified Virtual Machine.",
+                                 epilog="Currently, multi children are not supported.\
+                                        Nested children are supported.")
+parser.add_argument("-m", "--machine-name",
+                    action="store",
+                    help="(Required) Virtual Machine (VM) name enclosed in double quotes (\").\
+                         Not using double quotes may lead to abnormal behaviour if name contains whitespaces.",
+                    metavar="\"VM_NAME\"",
+                    type=str,
+                    required=True)
 
+parser.add_argument("-r", "--retain",
+                    action="store",
+                    choices=range(0, 1000),
+                    default=3,
+                    help="Number of latest snapshots to retain.\
+                         If 0 is provided - deletes all snapshots leaving just the Currrent State one.\
+                         If argument is not provided, defaults to 3.",
+                    metavar="(0-1000)",
+                    type=int,
+                    required=False)
+
+parser.add_argument("-v", "--verbose",
+                    action="store_true",
+                    help="Adds verbose",
+                    required=False)
+args = parser.parse_args()
+
+
+# pylint: disable=too-many-branches
 def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
     """
     Attempts to delete oldests snapshots from specified machine.
@@ -35,9 +66,10 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
             snapshot = snapshot.children[0]
             snapshot_details.append([snapshot.id_p, snapshot.name])
 
-        print("Overall list of snapshot:")
-        for snapshot in snapshot_details:
-            print(f"Snapshot ID: {snapshot[0]} Name: {snapshot[1]}")
+        if args.verbose:
+            print("Overall list of snapshot:")
+            for snapshot in snapshot_details:
+                print(f"Snapshot ID: {snapshot[0]} Name: {snapshot[1]}")
 
         if number_to_retain > len(snapshot_details):
             print("Number of snapshots to be retained is bigger then number of available snapshots. \
@@ -46,23 +78,30 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
 
         # Removing number of snapshots from the list of snapshots to be deleted
         snapshot_details = snapshot_details[:len(snapshot_details) - number_to_retain]
-        print("List of snapshots to be deleted:")
+
+        if args.verbose:
+            print("List of snapshots to be deleted:")
+
         if len(snapshot_details) == 0:
             # In case all existing snapshots to be retained
-            print("None")
+            if args.verbose:
+                print("None")
             return
 
-        for snapshot in snapshot_details:
-            print(f"Snapshot ID: {snapshot[0]} Name: {snapshot[1]}")
+        if args.verbose:
+            for snapshot in snapshot_details:
+                print(f"Snapshot ID: {snapshot[0]} Name: {snapshot[1]}")
 
         # Locking VM
         virtual_machine.lock_machine(session, virtualbox.library.LockType(1))
         for snapshot in snapshot_details:
             # Deleting snapshot by using Snapshot ID
             process = session.machine.delete_snapshot(snapshot[0])
-            print(f"Deleting {snapshot[1]}...")
+            if args.verbose:
+                print(f"Deleting snapshot: '{snapshot[1]}'...")
             process.wait_for_completion(timeout=-1)
-            print(f"Deleted {snapshot[1]}")
+            if args.verbose:
+                print(f"Deleted snapshot: '{snapshot[1]}'")
     except Exception as ex:
         print(f"Snapshot deletion aborted prematurely due to following exception: {ex}")
 
@@ -109,11 +148,14 @@ def create_snapshot(machine_name: str) -> bool:
         shared_lock_type = virtualbox.library.LockType(1)
         virtual_machine.lock_machine(session, shared_lock_type)
 
+    if args.verbose:
+        print(f"Creating snapshot: '{snap_name}'...")
     # Taking snapshot
     process, _ = session.machine.take_snapshot(snap_name, description, False)
     process.wait_for_completion(timeout=-1)
 
-    print("Created: " + snap_name)
+    if args.verbose:
+        print(f"Created snapshot: '{snap_name}'")
 
     if vm_running_initally:
         # Check if inital state of a machine was anything but "Powered Off"
@@ -125,33 +167,9 @@ def create_snapshot(machine_name: str) -> bool:
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="VirtualBox Snapshotter",
-                                     description="Takes new snapshots and deletes old ones\
-                                        for specified Virtual Machine.",
-                                     epilog="Currently, multi children are not supported.\
-                                        Nested children are supported.")
-    parser.add_argument("-m", "--machine-name",
-                        action="store",
-                        help="(Required) Virtual Machine (VM) name enclosed in double quotes (\").\
-                            Not using double quotes may lead to abnormal behaviour if name contains whitespaces.",
-                        metavar="\"VM_NAME\"",
-                        type=str,
-                        required=True
-                        )
-    parser.add_argument("-r", "--retain",
-                        action="store",
-                        choices=range(0, 1000),
-                        default=3,
-                        help="Number of latest snapshots to retain.\
-                              If 0 is provided - deletes all snapshots leaving just the Currrent State one.\
-                              If argument is not provided, defaults to 3.",
-                        metavar="(0-1000)",
-                        type=int,
-                        required=False,
-                        )
-    args = parser.parse_args()
+    if args.verbose:
+        print("Starting autosnapshotter script ...")
 
-    print("Starting autosnapshotter script ...")
     delete_oldest_snapshots(args.machine_name, args.retain)
     vm_status = create_snapshot(args.machine_name)
 
