@@ -40,9 +40,9 @@ __Note__ Remember to run the installation command from within the project direct
 usage: VirtualBox Snapshotter [-h] [-r 0-1000] [-v] [-n "CUSTOM_NAME"] [-d "CUSTOM_DESCRIPTION"] "VIRTUAL_MACHINE_NAME"
 ```
 
-### Necessary parameter
+### Positional parameter
 
-__NOTE__ Without specifying this as a first parameter (positional), script will fail to run.
+__NOTE__ Without specifying this parameter, script will fail to run.
 
 - `"VIRTUAL_MACHINE_NAME"` - Virtual Machine (VM) name enclosed in double quotes ("). Not using double quotes may lead to abnormal behaviour if name contains whitespaces.
 
