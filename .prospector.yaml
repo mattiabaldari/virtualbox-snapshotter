@@ -2,13 +2,14 @@ autodetect: false
 inherits:
   - strictness_veryhigh
 max-line-length: 120
-#doc-warnings: true
+doc-warnings: true
 #test-warnings: true
 ignore-paths:
   - .vscode
+  - .idea
   - .venv
-  - guide-images
-  - VirtualBox-SDK
+  - venv
+  - supplementary-materials
 pep8:
   full: true
 pydocstyle:
@@ -37,7 +38,6 @@ pylint:
     min-public-methods: 1
   disable:
     - C0114 # Missing-module-docstring / Missing module docstring
-    # Needs further reviewing
     - W0718 # Catching too general exception
 mccabe:
   disable:
