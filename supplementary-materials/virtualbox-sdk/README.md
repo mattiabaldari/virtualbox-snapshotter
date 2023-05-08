@@ -11,6 +11,7 @@ By the looks of it, VirtualBox 6.0.x is no longer supported as per official webs
 1. Go to VirtualBox’s [download page](<https://www.virtualbox.org/wiki/Downloads>) and download `VirtualBox X.Y.Z Software Developer Kit (SDK)`:
 
 ![VirtualBox-SDK](../images/VirtualBox-SDK.png?raw=true)
+
 2. Extract the contents of an archive
 3. Open a terminal (CMD, bash, etc.)
 4. Within terminal, navigate where `vboxapisetup.py` is located. It should be located in `sdk/installer`
