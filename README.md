@@ -67,17 +67,23 @@ This will run with default optional parameters:
 python virtualbox-snapshotter.py "My awesome VM"
 ```
 
+---
+
 This will retain 5 snapshots, other optional parameters will use default values:
 
 ```bash
 python virtualbox-snapshotter.py "My awesome VM" -r 5
 ```
 
+---
+
 This will retain 0 snapshots, will write a custom snapshot name and other optional parameters will use default values:
 
 ```bash
 python virtualbox-snapshotter.py "My awesome VM" -r 0 -n "My awesome snapshot name"
 ```
+
+---
 
 This will retain 10 snapshots, will write a custom snapshot name and snapshot description. Other optional parameters will use default values:
 
