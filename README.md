@@ -101,6 +101,8 @@ __Q:__ When the script is run with X snapshots to retain, the end result is X+1 
 
 __A:__ Yes, this is correct. If X amount of snapshots to retain is specified, the script will retain X amount of snapshots. However, a new snapshot will be taken after X amount of snapshots retained, meaning that total amount of snapshots will be X+1, where X - total amount of snapshots to retain. Example: retain amount - 5. All but 5 snapshots are deleted. Then, a new snapshot is taken. End result - 6 snapshots.
 
+---
+
 __Q:__ Script takes forever to run. It even seems like it does not do anything. Am I in trouble?
 
 __A:__ No, you are not in trouble. It relies on VirtualBox SDK which merges changes between snapshots. This means, the more snapshots you have and the more changes you have done to the Virtual Machine in between the snapshots, the longer it will take to run and merge the changes. Just be patient and eventually, it will finish its work. If you want to make sure it actually does things under the hood, make use of `-v` optional argument to check its progress.
