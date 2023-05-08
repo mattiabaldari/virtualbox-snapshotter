@@ -24,7 +24,7 @@ Installation guide on Youtube: <https://www.youtube.com/watch?v=uDEFQyu4MvM>
 2. Download the project as a `zip` archive
 3. Unzip downloaded `zip` archive
 4. Open a terminal (CMD, bash, etc.)
-5. Navigate into the project directory
+5. Within terminal, navigate into the project directory
 6. Install the requirements file and wait for it to complete:
 
 ```bash
@@ -50,7 +50,7 @@ __NOTE__ Without specifying this parameter, script will fail to run.
 
 - `-h` or `--help` - displays a help message
 - `-v` or `--verbose` - script will become more verbose (will produce more textual output). Useful for debugging.
-- `-r NUMBER` or `--retain NUMBER` - Number of latest snapshots to retain. Replace `NUMBER` with a number berween 0 (incl.) and 1000 (incl.). If 0 is provided - deletes all snapshots leaving just the latest one. If argument is not provided, defaults to 3.
+- `-r NUMBER` or `--retain NUMBER` - Number of latest snapshots to retain. Replace `NUMBER` with a number between 0 (incl.) and 1000 (incl.). If 0 is provided - deletes all snapshots leaving just the latest one. If argument is not provided, defaults to 3.
 - `-n "CUSTOM_NAME"` or `--name "CUSTOM_NAME"` - Customise name for a snapshot. Replace `CUSTOM_NAME` to any text for a custom snapshot name. Make sure to enclose your custom snapshot name within double quotes ("). If argument is not provided, defaults to "Regular Snapshot CURRENT_DATE"
 - `-d "CUSTOM_DESCRIPTION"` or `--description "CUSTOM_DESCRIPTION"` - Customise description for a snapshot. Replace `CUSTOM_DESCRIPTION` to any text for a custom snapshot description. Make sure to enclose your custom snapshot description within double quotes ("). If argument is not provided, defaults to "Regular Snapshot taken on CURRENT_DATE via virtualbox-snapshotter"
 
