@@ -185,6 +185,12 @@ def create_snapshot(machine_name: str) -> bool:
 
 
 def main():
+    """
+    Main code of virtualbox_snapshotter.
+
+    1. Tries to delete old snapshots
+    2. Tries to create a new snapshot
+    """
     if args.verbose:
         print("Starting autosnapshotter script ...")
 
