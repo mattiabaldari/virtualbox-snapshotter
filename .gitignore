@@ -4,3 +4,4 @@
 
 # Ignoring python venv
 .venv/
+venv/
