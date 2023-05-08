@@ -14,6 +14,8 @@ In order to function, this script relies on [VirtualBox SDK](https://www.virtual
 
 ## Installation process
 
+__WARNING__ This guide shows how to install modules, required by this script, into ROOT of the Python. Usually, this is not a best practice as it may cause module conflicts in a long run. Please use Python [virtual environment (venv)](<https://docs.python.org/3/library/venv.html>) for a best practice. To avoid making this readme enormous, its up to a user to sort out the virtual environment for Python.
+
 Installation guide on Youtube: <https://www.youtube.com/watch?v=uDEFQyu4MvM>
 
 ### Installation
