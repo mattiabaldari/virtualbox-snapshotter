@@ -66,7 +66,7 @@ __NOTE__ Without specifying this parameter, script will fail to run.
 This will run with default optional parameters:
 
 ```bash
-python virtualbox-snapshotter.py "My awesome VM"
+python virtualbox_snapshotter.py "My awesome VM"
 ```
 
 ---
@@ -74,7 +74,7 @@ python virtualbox-snapshotter.py "My awesome VM"
 This will retain 5 snapshots, other optional parameters will use default values:
 
 ```bash
-python virtualbox-snapshotter.py "My awesome VM" -r 5
+python virtualbox_snapshotter.py "My awesome VM" -r 5
 ```
 
 ---
@@ -82,7 +82,7 @@ python virtualbox-snapshotter.py "My awesome VM" -r 5
 This will retain 0 snapshots, will write a custom snapshot name and other optional parameters will use default values:
 
 ```bash
-python virtualbox-snapshotter.py "My awesome VM" -r 0 -n "My awesome snapshot name"
+python virtualbox_snapshotter.py "My awesome VM" -r 0 -n "My awesome snapshot name"
 ```
 
 ---
@@ -90,7 +90,7 @@ python virtualbox-snapshotter.py "My awesome VM" -r 0 -n "My awesome snapshot na
 This will retain 10 snapshots, will write a custom snapshot name and snapshot description. Other optional parameters will use default values:
 
 ```bash
-python virtualbox-snapshotter.py "My awesome VM" -r 10 -n "My awesome snapshot name" -d "My awesome snapshot description"
+python virtualbox_snapshotter.py "My awesome VM" -r 10 -n "My awesome snapshot name" -d "My awesome snapshot description"
 ```
 
 ## Scheduling
