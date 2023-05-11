@@ -11,7 +11,7 @@ Welcome to contributing guide! Thank you for checking out this guide and conside
 - In forked repo, branch out of `master`
 - [Create a Python virtual environment](https://docs.python.org/3/library/venv.html#creating-virtual-environments)
 - Enable Python virtual environment
-- Install required modules from `requirements_dev.txt`: this will install linting tools (`prospector`) along the rest required modules for the code
+- Install required modules from `requirements_dev.txt`: this will install linting tools (`prospector`, linting rules are preconfigured already and are available at `.prospector.yaml`) along the rest required modules for the code
 - Implement changes
 - Test implemented changes
 - Ensure linting is succeeding via `prospector`:
