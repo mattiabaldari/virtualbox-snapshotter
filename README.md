@@ -4,6 +4,10 @@
 ![shield-code-size](https://img.shields.io/github/languages/code-size/Meru3m/virtualbox-snapshotter)
 ![shield-issues](https://img.shields.io/github/issues/Meru3m/virtualbox-snapshotter)
 
+## Contributing
+
+Guide on how to contribute to this repository is described within [CONTRIBUTING.md](CONTRIBUTING.md)
+
 ## Description
 
 Python script to automate Virtualbox snapshotting process. It uses circular logic aka "oldest snapshot out, newest snapshot in" with an ability to customise total amount of snapshots to retain. Moreover, it provides and ability to customise snapshot details.
