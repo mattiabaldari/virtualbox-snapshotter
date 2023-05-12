@@ -1,3 +1,2 @@
 pywin32==306
 virtualbox==2.1.*
-prospector==1.9.*

@@ -1,0 +1,2 @@
+# Ignoring development requirements for releases
+requirements_dev.txt export-ignore
