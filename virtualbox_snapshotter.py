@@ -58,20 +58,17 @@ args = parser.parse_args()
 # pylint: disable=too-many-branches
 def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
     """
-    Attempts to delete oldests snapshots from specified machine.
+    Attempts to delete oldest snapshots from specified machine.
 
-    in machine_name of type str
-        Machine name to search for.
-
-    in number_to_retain of type int
-        Number of newest snapshots to retain.
-
+    :param str machine_name: machine name to search for
+    :param int number_to_retain: number of newest snapshots to retain
+    :return: None
     """
     try:
         # Trying to find a machine
         virtual_machine = vbox.find_machine(machine_name)
 
-        # Snapshot ids[0] and names[1] sorted from oldest (index - 0) to newest (index - higest)
+        # Snapshot ids[0] and names[1] sorted from oldest (index - 0) to newest (index - highest)
         snapshot_details = []
         # Getting root snapshot and adding it to a list
         snapshot = virtual_machine.find_snapshot("")
@@ -126,21 +123,19 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
 
 def create_snapshot(machine_name: str) -> bool:
     """
-    Attempts to create a snapshot for specified machine.
+    Attempts to create a snapshot for a specified machine.
 
-    in machine_name of type str
-        Machine name to search for.
-
-    return vm_running_initally of type bool
-        Status if machine was in any state but "Powered Off" initally
+    :param str machine_name: machine name to search for
+    :return: status of a machine if it was in any state but "Powered Off" initially
+    :rtype: bool
     """
-    # Assuming that machine is initally in any state but not in "Powered Off"
-    vm_running_initally = True
+    # Assuming that machine is initially in any state but not in "Powered Off"
+    vm_running_initially = True
 
     virtual_machine = vbox.find_machine(machine_name)
     if virtual_machine.state == virtualbox.library.MachineState(1):
         # Check if machine is powered off (MachineState(1) = PowerOff)
-        vm_running_initally = False
+        vm_running_initially = False
 
         if session.state == virtualbox.library.SessionState(2):
             # Check if session is locked (SessionState(2) = Locked)
@@ -154,8 +149,8 @@ def create_snapshot(machine_name: str) -> bool:
     snap_name = f"{args.name} {datetime.now().strftime('%d-%m-%Y')}"
     description = f"{args.description} {datetime.now().strftime('%d-%m-%Y')} via virtualbox-snapshotter"
 
-    if vm_running_initally:
-        # Check if inital state of a machine was anything but "Powered Off"
+    if vm_running_initially:
+        # Check if initial state of a machine was anything but "Powered Off"
         if virtual_machine.session_state == virtualbox.library.SessionState(2):
             # Check if VM session is locked (SessionState(2) = Locked)
             if session.state == virtualbox.library.SessionState(2):
@@ -175,13 +170,13 @@ def create_snapshot(machine_name: str) -> bool:
     if args.verbose:
         print(f"Created snapshot: '{snap_name}'")
 
-    if vm_running_initally:
-        # Check if inital state of a machine was anything but "Powered Off"
+    if vm_running_initially:
+        # Check if initial state of a machine was anything but "Powered Off"
         if session.state == virtualbox.library.SessionState(2):
             # Check if session is locked
             session.unlock_machine()
 
-    return vm_running_initally
+    return vm_running_initially
 
 
 def main():
