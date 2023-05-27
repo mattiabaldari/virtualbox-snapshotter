@@ -4,57 +4,6 @@ import logging
 
 import virtualbox
 
-vbox = virtualbox.VirtualBox()
-session = virtualbox.Session()
-
-parser = argparse.ArgumentParser(prog="VirtualBox Snapshotter",
-                                 description="Takes new snapshots and deletes old ones\
-                                             for specified Virtual Machine.",
-                                 epilog="Currently, multi children are not supported.\
-                                        Nested children are supported.")
-parser.add_argument("machine_name",
-                    action="store",
-                    help="(Required) Virtual Machine (VM) name enclosed in double quotes (\").\
-                         Not using double quotes may lead to abnormal behaviour if name contains whitespaces.",
-                    metavar="\"VIRTUAL_MACHINE_NAME\"",
-                    type=str)
-
-parser.add_argument("-r", "--retain",
-                    action="store",
-                    choices=range(0, 1000),
-                    default=3,
-                    help="Number of latest snapshots to retain.\
-                         If 0 is provided - deletes all snapshots leaving just the latest one.\
-                         If argument is not provided, defaults to 3.",
-                    metavar="(0-1000)",
-                    type=int,
-                    required=False)
-
-parser.add_argument("-v", "--verbose",
-                    action="store_true",
-                    help="Adds verbosity",
-                    required=False)
-
-parser.add_argument("-n", "--name",
-                    action="store",
-                    help="Custom name for a snapshot.\
-                         If argument is not provided, defaults to 'Regular Snapshot DATE'",
-                    metavar="\"CUSTOM_NAME\"",
-                    type=str,
-                    default="Regular Snapshot",
-                    required=False)
-
-parser.add_argument("-d", "--description",
-                    action="store",
-                    help="Custom description for a snapshot.\
-                         If argument is not provided, defaults to \
-                         'Regular Snapshot taken on DATE via virtualbox-snapshotter'",
-                    metavar="\"CUSTOM_DESCRIPTION\"",
-                    type=str,
-                    default="Regular Snapshot taken on",
-                    required=False)
-args = parser.parse_args()
-
 
 def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
     """
@@ -202,7 +151,65 @@ if __name__ == "__main__":
     # Default log level is WARNING
     logger.setLevel(logging.WARNING)
 
+    # Global placeholders
+    vbox = virtualbox.VirtualBox()
+    session = virtualbox.Session()
+
+    # Adding argparse to application
+    parser = argparse.ArgumentParser(prog="VirtualBox Snapshotter",
+                                     description="Takes new snapshots and deletes old ones\
+                                                 for specified Virtual Machine.",
+                                     epilog="Currently, multi children are not supported.\
+                                            Nested children are supported.")
+
+    # Adding arguments to argparse
+    parser.add_argument("machine_name",
+                        action="store",
+                        help="(Required) Virtual Machine (VM) name enclosed in double quotes (\").\
+                            Not using double quotes may lead to abnormal behaviour if name contains whitespaces.",
+                        metavar="\"VIRTUAL_MACHINE_NAME\"",
+                        type=str)
+
+    parser.add_argument("-r", "--retain",
+                        action="store",
+                        choices=range(0, 1000),
+                        default=3,
+                        help="Number of latest snapshots to retain.\
+                            If 0 is provided - deletes all snapshots leaving just the latest one.\
+                            If argument is not provided, defaults to 3.",
+                        metavar="(0-1000)",
+                        type=int,
+                        required=False)
+
+    parser.add_argument("-v", "--verbose",
+                        action="store_true",
+                        help="Adds verbosity",
+                        required=False)
+
+    parser.add_argument("-n", "--name",
+                        action="store",
+                        help="Custom name for a snapshot.\
+                            If argument is not provided, defaults to 'Regular Snapshot DATE'",
+                        metavar="\"CUSTOM_NAME\"",
+                        type=str,
+                        default="Regular Snapshot",
+                        required=False)
+
+    parser.add_argument("-d", "--description",
+                        action="store",
+                        help="Custom description for a snapshot.\
+                            If argument is not provided, defaults to \
+                            'Regular Snapshot taken on DATE via virtualbox-snapshotter'",
+                        metavar="\"CUSTOM_DESCRIPTION\"",
+                        type=str,
+                        default="Regular Snapshot taken on",
+                        required=False)
+
+    # Parsing arguments
+    args = parser.parse_args()
+
     if args.verbose:
         # When verbosity flag is set, log level is changed to INFO
         logger.setLevel(logging.INFO)
+
     main()
