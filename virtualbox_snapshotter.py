@@ -1,5 +1,6 @@
 from datetime import datetime
 import argparse
+import logging
 
 import virtualbox
 
@@ -55,7 +56,6 @@ parser.add_argument("-d", "--description",
 args = parser.parse_args()
 
 
-# pylint: disable=too-many-branches
 def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
     """
     Attempts to delete oldest snapshots from specified machine.
@@ -81,44 +81,38 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
             snapshot = snapshot.children[0]
             snapshot_details.append([snapshot.id_p, snapshot.name])
 
-        if args.verbose:
-            print("Overall list of snapshot:")
-            for snapshot in snapshot_details:
-                print(f"Snapshot ID: {snapshot[0]} Name: {snapshot[1]}")
+        logger.info("Overall list of snapshot:")
+        for snapshot in snapshot_details:
+            logger.info("Snapshot ID: %s Name: %s", snapshot[0], snapshot[1])
 
         if number_to_retain > len(snapshot_details):
-            print("Number of snapshots to be retained is bigger then number of available snapshots. \
-                  Snapshot deletion aborted.")
+            logger.warning("Number of snapshots to be retained is bigger then number of available snapshots. "
+                           "Snapshot deletion aborted.")
             return
 
         # Removing number of snapshots from the list of snapshots to be deleted
         snapshot_details = snapshot_details[:len(snapshot_details) - number_to_retain]
 
-        if args.verbose:
-            print("List of snapshots to be deleted:")
+        logger.info("List of snapshots to be deleted:")
 
         if len(snapshot_details) == 0:
             # In case all existing snapshots to be retained
-            if args.verbose:
-                print("None")
+            logger.info("None")
             return
 
-        if args.verbose:
-            for snapshot in snapshot_details:
-                print(f"Snapshot ID: {snapshot[0]} Name: {snapshot[1]}")
+        for snapshot in snapshot_details:
+            logger.info("Snapshot ID: %s, Name: %s", snapshot[0], snapshot[1])
 
         # Locking VM
         virtual_machine.lock_machine(session, virtualbox.library.LockType(1))
         for snapshot in snapshot_details:
             # Deleting snapshot by using Snapshot ID
             process = session.machine.delete_snapshot(snapshot[0])
-            if args.verbose:
-                print(f"Deleting snapshot: '{snapshot[1]}'...")
+            logger.info("Deleting snapshot: '%s'...", snapshot[1])
             process.wait_for_completion(timeout=-1)
-            if args.verbose:
-                print(f"Deleted snapshot: '{snapshot[1]}'")
-    except Exception as ex:
-        print(f"Snapshot deletion aborted prematurely due to following exception: {ex}")
+            logger.info("Deleted snapshot: '%s'", {snapshot[1]})
+    except Exception:
+        logger.error("Snapshot deletion aborted prematurely:", stack_info=True, exc_info=True)
 
 
 def create_snapshot(machine_name: str) -> bool:
@@ -161,14 +155,12 @@ def create_snapshot(machine_name: str) -> bool:
         shared_lock_type = virtualbox.library.LockType(1)
         virtual_machine.lock_machine(session, shared_lock_type)
 
-    if args.verbose:
-        print(f"Creating snapshot: '{snap_name}'...")
+    logger.info("Creating snapshot: '%s'...", snap_name)
     # Taking snapshot
     process, _ = session.machine.take_snapshot(snap_name, description, False)
     process.wait_for_completion(timeout=-1)
 
-    if args.verbose:
-        print(f"Created snapshot: '{snap_name}'")
+    logger.info("Created snapshot: '%s'", snap_name)
 
     if vm_running_initially:
         # Check if initial state of a machine was anything but "Powered Off"
@@ -186,8 +178,7 @@ def main():
     1. Tries to delete old snapshots
     2. Tries to create a new snapshot
     """
-    if args.verbose:
-        print("Starting autosnapshotter script ...")
+    logger.info("Starting autosnapshotter script ...")
 
     delete_oldest_snapshots(args.machine_name, args.retain)
     vm_status = create_snapshot(args.machine_name)
@@ -195,10 +186,23 @@ def main():
     try:
         if not vm_status:
             session.console.power_down()
-    except Exception as ex:
-        print(f"Power down of virtual machine execution exited prematurely with following exception: {ex}")
+    except Exception:
+        logger.error("Power down of virtual machine execution exited prematurely:", stack_info=True, exc_info=True)
         return
 
 
 if __name__ == "__main__":
+    # Setting up a global logger
+    logger = logging.getLogger(__name__)
+
+    # Setting up default logging string format
+    logging.basicConfig(format="%(filename)s:%(levelname)s:%(asctime)s:%(funcName)s(): %(message)s",
+                        datefmt="%d/%m/%Y %H:%M:%S")
+
+    # Default log level is WARNING
+    logger.setLevel(logging.WARNING)
+
+    if args.verbose:
+        # When verbosity flag is set, log level is changed to INFO
+        logger.setLevel(logging.INFO)
     main()
