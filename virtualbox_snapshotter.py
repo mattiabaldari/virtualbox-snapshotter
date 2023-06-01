@@ -1,6 +1,7 @@
 from datetime import datetime
 import argparse
 import logging
+import sys
 
 import virtualbox
 
@@ -31,12 +32,24 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
             snapshot_details.append([snapshot.id_p, snapshot.name])
 
         logger.info("Overall list of snapshot:")
+
         for snapshot in snapshot_details:
             logger.info("Snapshot ID: %s Name: %s", snapshot[0], snapshot[1])
 
+        if args.ignore is not None:
+            # An ignore file is specified
+
+            # Parsing snapshot ignore file
+            uuids_to_retain = parse_snapshot_ignore_file(args.ignore)
+
+            # Removing snapshot records if there are any matching records between
+            # read from ignore file and available snapshots
+            # TODO: This may potentially be slow when being run with thousands of records
+            snapshot_details = [snapshot for snapshot in snapshot_details if snapshot[0] not in uuids_to_retain]
+
         if number_to_retain > len(snapshot_details):
             logger.warning("Number of snapshots to be retained is bigger then number of available snapshots. "
-                           "Snapshot deletion aborted.")
+                           "Snapshot deletion aborted. Snapshot creation will proceed.")
             return
 
         # Removing number of snapshots from the list of snapshots to be deleted
@@ -59,9 +72,13 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
             process = session.machine.delete_snapshot(snapshot[0])
             logger.info("Deleting snapshot: '%s'...", snapshot[1])
             process.wait_for_completion(timeout=-1)
-            logger.info("Deleted snapshot: '%s'", {snapshot[1]})
+            logger.info("Deleted snapshot: '%s'", snapshot[1])
+    # TODO: Catching too generic exception. Please be more specific.s
     except Exception:
-        logger.error("Snapshot deletion aborted prematurely:", stack_info=True, exc_info=True)
+        # Exiting application on exception as it may be due to user error (i.e. typo in machine name)
+        # Snapshot deletion must not happen in such a case.
+        logger.error("Snapshot deletion aborted prematurely", exc_info=True)
+        sys.exit()
 
 
 def create_snapshot(machine_name: str) -> bool:
@@ -120,6 +137,43 @@ def create_snapshot(machine_name: str) -> bool:
     return vm_running_initially
 
 
+def parse_snapshot_ignore_file(filename: str) -> list:
+    """
+    Reads a list of VirtualBox snapshot UUIDs from a file.
+
+    On OSError, returns an empty list.
+
+    :param str filename: filename to read a list of VirtualBox snapshot UUIDs from
+    :return: read list of VirtualBox snapshot UUIDs
+    :rtype: list
+    """
+    uuids = []
+
+    try:
+        with open(file=filename, mode="rt", encoding="utf8") as file_stream:
+            for dirty_line in file_stream:
+                # String processing required as line may contain:
+                # 1. Comments (those, starting with #)
+                # 2. Whitespaces
+
+                # Removing comments (starting with #) from read line
+                comment_start_position = dirty_line.find("#")
+                no_comment_line = dirty_line[:comment_start_position]
+
+                # Removing whitespaces from processed line
+                clean_line = no_comment_line.strip()
+                uuids.append(clean_line)
+
+    except OSError:
+        logger.error("Exception while trying to read snapshot UUID ignore file",
+                     exc_info=True)
+        # Exiting application on exception as it may be due to user error (i.e. typo in ignore filename)
+        # Snapshot deletion must not happen in such a case.
+        sys.exit()
+
+    return uuids
+
+
 def main():
     """
     Main code of virtualbox_snapshotter.
@@ -135,8 +189,9 @@ def main():
     try:
         if not vm_status:
             session.console.power_down()
+    # TODO: Catching too generic exception. Please be more specific.
     except Exception:
-        logger.error("Power down of virtual machine execution exited prematurely:", stack_info=True, exc_info=True)
+        logger.error("Power down of virtual machine execution exited prematurely", exc_info=True)
         return
 
 
@@ -145,7 +200,7 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
 
     # Setting up default logging string format
-    logging.basicConfig(format="%(filename)s:%(levelname)s:%(asctime)s:%(funcName)s(): %(message)s",
+    logging.basicConfig(format="%(filename)s:%(levelname)s:%(asctime)s:%(funcName)s: %(message)s",
                         datefmt="%d/%m/%Y %H:%M:%S")
 
     # Default log level is WARNING
@@ -157,16 +212,16 @@ if __name__ == "__main__":
 
     # Adding argparse to application
     parser = argparse.ArgumentParser(prog="VirtualBox Snapshotter",
-                                     description="Takes new snapshots and deletes old ones\
-                                                 for specified Virtual Machine.",
-                                     epilog="Currently, multi children are not supported.\
-                                            Nested children are supported.")
+                                     description="Takes new snapshots and deletes old ones "
+                                                 "for specified Virtual Machine.",
+                                     epilog="Currently, multi children are not supported. "
+                                            "Nested children are supported.")
 
     # Adding arguments to argparse
     parser.add_argument("machine_name",
                         action="store",
-                        help="(Required) Virtual Machine (VM) name enclosed in double quotes (\").\
-                            Not using double quotes may lead to abnormal behaviour if name contains whitespaces.",
+                        help="(Required) Virtual Machine (VM) name enclosed in double quotes (\"). "
+                             "Not using double quotes may lead to abnormal behaviour if name contains whitespaces.",
                         metavar="\"VIRTUAL_MACHINE_NAME\"",
                         type=str)
 
@@ -174,9 +229,12 @@ if __name__ == "__main__":
                         action="store",
                         choices=range(0, 1000),
                         default=3,
-                        help="Number of latest snapshots to retain.\
-                            If 0 is provided - deletes all snapshots leaving just the latest one.\
-                            If argument is not provided, defaults to 3.",
+                        help="Number of latest snapshots to retain. "
+                             "When used with '-i'/'--ignore', counts only those snapshots, that are NOT ignored. "
+                             "I.e. 2 snapshot are ignored via '-i'/'--ignore', 3 snapshots specified for "
+                             "'-r'/'--retain', resulting number of preserved snapshots will be 5. "
+                             "If 0 is provided - deletes all snapshots leaving just the latest one. "
+                             "If argument is not provided, defaults to 3.",
                         metavar="(0-1000)",
                         type=int,
                         required=False)
@@ -188,22 +246,31 @@ if __name__ == "__main__":
 
     parser.add_argument("-n", "--name",
                         action="store",
-                        help="Custom name for a snapshot.\
-                            If argument is not provided, defaults to 'Regular Snapshot DATE'",
-                        metavar="\"CUSTOM_NAME\"",
+                        help="Custom name for a snapshot. "
+                             "If argument is not provided, defaults to 'Regular Snapshot CURRENT_DATE'",
+                        metavar="\"CUSTOM_SNAPSHOT_NAME\"",
                         type=str,
                         default="Regular Snapshot",
                         required=False)
 
     parser.add_argument("-d", "--description",
                         action="store",
-                        help="Custom description for a snapshot.\
-                            If argument is not provided, defaults to \
-                            'Regular Snapshot taken on DATE via virtualbox-snapshotter'",
-                        metavar="\"CUSTOM_DESCRIPTION\"",
+                        help="Custom description for a snapshot. "
+                             "If argument is not provided, defaults to "
+                             "'Regular Snapshot taken on CURRENT_DATE via virtualbox-snapshotter'",
+                        metavar="\"CUSTOM_SNAPSHOT_DESCRIPTION\"",
                         type=str,
                         default="Regular Snapshot taken on",
                         required=False)
+
+    parser.add_argument("-i", "--ignore",
+                        action="store",
+                        help="Path to a file, containing snapshot IDs to be ignored from deletion. "
+                             "Snapshot UUIDs specified within a file will never be deleted.",
+                        metavar="\"SNAPSHOT_IGNORE_FILENAME\"",
+                        type=str,
+                        required=False
+                        )
 
     # Parsing arguments
     args = parser.parse_args()
