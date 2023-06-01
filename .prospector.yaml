@@ -36,8 +36,6 @@ pydocstyle:
 pylint:
   options:
     min-public-methods: 1
-  disable:
-    - C0114 # Missing-module-docstring / Missing module docstring
 mccabe:
   disable:
     # Temporary disable while inline skipping is unsupported
