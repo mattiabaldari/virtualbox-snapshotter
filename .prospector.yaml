@@ -38,7 +38,6 @@ pylint:
     min-public-methods: 1
   disable:
     - C0114 # Missing-module-docstring / Missing module docstring
-    - W0718 # Catching too general exception
 mccabe:
   disable:
     # Temporary disable while inline skipping is unsupported
