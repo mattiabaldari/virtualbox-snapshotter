@@ -105,6 +105,22 @@ This will retain 10 snapshots, will write a custom snapshot name and snapshot de
 python virtualbox_snapshotter.py "My awesome VM" -r 10 -n "My awesome snapshot name" -d "My awesome snapshot description"
 ```
 
+---
+
+This will retain 15 snapshots (potentially - more, depending on `ignore.txt` content), will write a custom snapshot name and snapshot description, ignore deleting snapshots as specified in `ignore.txt`. Other optional parameters will use default values:
+
+```bash
+python virtualbox_snapshotter.py "My awesome VM" -r 15 -n "My awesome snapshot name" -d "My awesome snapshot description" -i "ignore.txt"
+```
+
+---
+
+This will list all snapshots (if any) and their details (name, UUID, date) for selected virtual machine:
+
+```bash
+python virtualbox_snapshotter.py "My awesome VM" -l
+```
+
 ## Scheduling
 
 The script itself does not provide an ability to schedule when it should be run. However, most mainstream operating systems provide an ability to schedule tasks:
