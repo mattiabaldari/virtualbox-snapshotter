@@ -107,7 +107,7 @@ python virtualbox_snapshotter.py "My awesome VM" -r 10 -n "My awesome snapshot n
 
 ---
 
-This will retain 15 snapshots (potentially - more, depending on `ignore.txt` content), will write a custom snapshot name and snapshot description, ignore deleting snapshots as specified in `ignore.txt`. Other optional parameters will use default values:
+This will retain 15 snapshots (potentially - more, depending on `ignore.txt` content), will write a custom snapshot name and snapshot description, ignore deleting specific snapshots as specified in `ignore.txt`. Other optional parameters will use default values:
 
 ```bash
 python virtualbox_snapshotter.py "My awesome VM" -r 15 -n "My awesome snapshot name" -d "My awesome snapshot description" -i "ignore.txt"
