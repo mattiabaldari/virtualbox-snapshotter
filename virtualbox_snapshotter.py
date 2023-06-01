@@ -14,23 +14,8 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
     :param int number_to_retain: number of newest snapshots to retain
     :return: None
     """
+    virtual_machine, snapshot_details = load_vm_and_snapshot_details(machine_name)
     try:
-        # Trying to find a machine
-        virtual_machine = vbox.find_machine(machine_name)
-
-        # Snapshot ids[0] and names[1] sorted from oldest (index - 0) to newest (index - highest)
-        snapshot_details = []
-        # Getting root snapshot and adding it to a list
-        snapshot = virtual_machine.find_snapshot("")
-        snapshot_details.append([snapshot.id_p, snapshot.name])
-
-        # Traversing through children snapshots (until one has no children) and adding them to a list
-        while snapshot.children_count != 0:
-            # TODO: Implement multi children scan
-            # This check skips snapshot marked as "Current State"
-            snapshot = snapshot.children[0]
-            snapshot_details.append([snapshot.id_p, snapshot.name])
-
         logger.info("Overall list of snapshot:")
 
         for snapshot in snapshot_details:
@@ -73,8 +58,7 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
             logger.info("Deleting snapshot: '%s'...", snapshot[1])
             process.wait_for_completion(timeout=-1)
             logger.info("Deleted snapshot: '%s'", snapshot[1])
-    # TODO: Catching too generic exception. Please be more specific.s
-    except Exception:
+    except virtualbox.lib.VBoxError:
         # Exiting application on exception as it may be due to user error (i.e. typo in machine name)
         # Snapshot deletion must not happen in such a case.
         logger.error("Snapshot deletion aborted prematurely", exc_info=True)
@@ -174,6 +158,43 @@ def parse_snapshot_ignore_file(filename: str) -> list:
     return uuids
 
 
+def load_vm_and_snapshot_details(machine_name: str) -> tuple[virtualbox.library.IMachine, list]:
+    """
+    Loads virtual machine object and virtual machine snapshots' details.
+
+    :param str machine_name: name of a virtual machine
+    :return: virtual machine object and all snapshot details
+    :rtype: tuple
+    """
+    virtual_machine = virtualbox.library.IMachine()
+    snapshot_details = []
+    try:
+        # Trying to find a machine
+        virtual_machine = vbox.find_machine(machine_name)
+
+        # Snapshot ids[0], names[1], descriptions[2] are sorted from oldest (index 0) to newest
+        snapshot_details = []
+        # Getting root snapshot and adding it to a list
+        snapshot = virtual_machine.find_snapshot("")
+        snapshot_details.append([snapshot.id_p, snapshot.name, snapshot.description])
+
+        # Traversing through children snapshots (until one has no children) and adding them to a list
+        while snapshot.children_count != 0:
+            # TODO: Implement multi children scan
+            # This check skips snapshot marked as "Current State"
+            snapshot = snapshot.children[0]
+            snapshot_details.append([snapshot.id_p, snapshot.name, snapshot.description])
+    except virtualbox.lib.VBoxError:
+        # Raises `VBoxError` when:
+        # 1. Could not find a registered machine named `machine_name`
+        # 2. When machine does not have any snapshots
+        logger.error("Could not find a registered machine named '%s' or "
+                     "machine does not have any snapshots", machine_name, exc_info=True)
+        sys.exit()
+
+    return virtual_machine, snapshot_details
+
+
 def main():
     """
     Main code of virtualbox_snapshotter.
@@ -183,14 +204,23 @@ def main():
     """
     logger.info("Starting autosnapshotter script ...")
 
+    if args.list:
+        _, snapshot_details = load_vm_and_snapshot_details(args.machine_name)
+
+        # Avoiding to use logger here to not clutter output which may be of some use for user
+        print(f"Available snapshots for '{args.machine_name}':")
+        for snapshot in snapshot_details:
+            print(f"Name: '{snapshot[1]}' UUID: {snapshot[0]}")
+            print(f"\tDescription: {snapshot[2]}")
+        return
+
     delete_oldest_snapshots(args.machine_name, args.retain)
     vm_status = create_snapshot(args.machine_name)
 
     try:
         if not vm_status:
             session.console.power_down()
-    # TODO: Catching too generic exception. Please be more specific.
-    except Exception:
+    except virtualbox.lib.VBoxError:
         logger.error("Power down of virtual machine execution exited prematurely", exc_info=True)
         return
 
@@ -269,6 +299,15 @@ if __name__ == "__main__":
                              "Snapshot UUIDs specified within a file will never be deleted.",
                         metavar="\"SNAPSHOT_IGNORE_FILENAME\"",
                         type=str,
+                        required=False
+                        )
+
+    parser.add_argument("-l", "--list",
+                        action="store_true",
+                        help="Lists all snapshots and their details (name, UUID, date) for selected virtual machine. "
+                             "When '-l'/'--list' is specified, no actions (i.e. snapshot delete, machine lock etc) "
+                             "are performed on a virtual machine apart from reading virtual machine's details. "
+                             "When '-l'/'--list' argument is used, any other optional argument has no effect",
                         required=False
                         )
 
