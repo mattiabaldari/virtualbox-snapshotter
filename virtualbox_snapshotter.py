@@ -15,41 +15,42 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
     :return: None
     """
     virtual_machine, snapshot_details = load_vm_and_snapshot_details(machine_name)
+
+    logger.info("Overall list of snapshot:")
+
+    for snapshot in snapshot_details:
+        logger.info("Snapshot ID: %s Name: %s", snapshot[0], snapshot[1])
+
+    if args.ignore is not None:
+        # An ignore file is specified
+
+        # Parsing snapshot ignore file
+        uuids_to_retain = parse_snapshot_ignore_file(args.ignore)
+
+        # Removing snapshot records if there are any matching records between
+        # read from ignore file and available snapshots
+        # TODO: This may potentially be slow when being run with thousands of records
+        snapshot_details = [snapshot for snapshot in snapshot_details if snapshot[0] not in uuids_to_retain]
+
+    if number_to_retain > len(snapshot_details):
+        logger.warning("Number of snapshots to be retained is bigger then number of available snapshots. "
+                       "Snapshot deletion aborted. Snapshot creation will proceed.")
+        return
+
+    # Removing number of snapshots from the list of snapshots to be deleted
+    snapshot_details = snapshot_details[:len(snapshot_details) - number_to_retain]
+
+    logger.info("List of snapshots to be deleted:")
+
+    if len(snapshot_details) == 0:
+        # In case all existing snapshots to be retained
+        logger.info("None")
+        return
+
+    for snapshot in snapshot_details:
+        logger.info("Snapshot ID: %s, Name: %s", snapshot[0], snapshot[1])
+
     try:
-        logger.info("Overall list of snapshot:")
-
-        for snapshot in snapshot_details:
-            logger.info("Snapshot ID: %s Name: %s", snapshot[0], snapshot[1])
-
-        if args.ignore is not None:
-            # An ignore file is specified
-
-            # Parsing snapshot ignore file
-            uuids_to_retain = parse_snapshot_ignore_file(args.ignore)
-
-            # Removing snapshot records if there are any matching records between
-            # read from ignore file and available snapshots
-            # TODO: This may potentially be slow when being run with thousands of records
-            snapshot_details = [snapshot for snapshot in snapshot_details if snapshot[0] not in uuids_to_retain]
-
-        if number_to_retain > len(snapshot_details):
-            logger.warning("Number of snapshots to be retained is bigger then number of available snapshots. "
-                           "Snapshot deletion aborted. Snapshot creation will proceed.")
-            return
-
-        # Removing number of snapshots from the list of snapshots to be deleted
-        snapshot_details = snapshot_details[:len(snapshot_details) - number_to_retain]
-
-        logger.info("List of snapshots to be deleted:")
-
-        if len(snapshot_details) == 0:
-            # In case all existing snapshots to be retained
-            logger.info("None")
-            return
-
-        for snapshot in snapshot_details:
-            logger.info("Snapshot ID: %s, Name: %s", snapshot[0], snapshot[1])
-
         # Locking VM
         virtual_machine.lock_machine(session, virtualbox.library.LockType(1))
         for snapshot in snapshot_details:
@@ -185,9 +186,8 @@ def load_vm_and_snapshot_details(machine_name: str) -> tuple[virtualbox.library.
             snapshot = snapshot.children[0]
             snapshot_details.append([snapshot.id_p, snapshot.name, snapshot.description])
     except virtualbox.lib.VBoxError:
-        # Raises `VBoxError` when:
         # 1. Could not find a registered machine named `machine_name`
-        # 2. When machine does not have any snapshots
+        # 2. Machine does not have any snapshots
         logger.error("Could not find a registered machine named '%s' or "
                      "machine does not have any snapshots", machine_name, exc_info=True)
         sys.exit()
@@ -221,6 +221,7 @@ def main():
         if not vm_status:
             session.console.power_down()
     except virtualbox.lib.VBoxError:
+        # Virtual machine must be Running, Paused or Stuck to be powered down.
         logger.error("Power down of virtual machine execution exited prematurely", exc_info=True)
         return
 
