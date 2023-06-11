@@ -37,7 +37,10 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
     :param int number_to_retain: number of newest snapshots to retain
     :return: None
     """
+
     virtual_machine, snapshot_details = load_vm_and_snapshot_details(machine_name)
+    if not snapshot_details:
+        return
 
     logger.info("Overall list of snapshot:")
 
@@ -190,6 +193,7 @@ def load_vm_and_snapshot_details(machine_name: str) -> tuple[virtualbox.library.
     :return: virtual machine object and all snapshot details
     :rtype: tuple
     """
+
     virtual_machine = virtualbox.library.IMachine()
     snapshot_details = []
     try:
@@ -199,7 +203,12 @@ def load_vm_and_snapshot_details(machine_name: str) -> tuple[virtualbox.library.
         # Snapshot ids[0], names[1], descriptions[2] are sorted from oldest (index 0) to newest
         snapshot_details = []
         # Getting root snapshot and adding it to a list
-        snapshot = virtual_machine.find_snapshot("")
+        try:
+            snapshot = virtual_machine.find_snapshot("")
+        except Exception as err:
+            if err.value == 2147614729 and "This machine does not have any snapshots" in err.msg:
+                return virtual_machine, None
+
         snapshot_details.append([snapshot.id_p, snapshot.name, snapshot.description])
 
         # Traversing through children snapshots (until one has no children) and adding them to a list
@@ -229,13 +238,16 @@ def main():
 
     if args.list:
         _, snapshot_details = load_vm_and_snapshot_details(args.machine_name)
-
         # Avoiding to use logger here to not clutter output which may be of some use for user
         print(f"Available snapshots for '{args.machine_name}':")
-        for snapshot in snapshot_details:
-            print(f"Name: '{snapshot[1]}' UUID: {snapshot[0]}")
-            print(f"\tDescription: {snapshot[2]}")
-        return
+        if not snapshot_details:
+            print(f"0 snapshots")
+        else:
+            for snapshot in snapshot_details:
+                print(f"Name: '{snapshot[1]}' UUID: {snapshot[0]}")
+                print(f"\tDescription: {snapshot[2]}")
+            return
+
 
     delete_oldest_snapshots(args.machine_name, args.retain)
     vm_status = create_snapshot(args.machine_name)
