@@ -29,17 +29,25 @@ import sys
 import virtualbox
 
 
-def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
+def delete_oldest_snapshots(virtual_machine: virtualbox.lib.IMachine,
+                            session: virtualbox.lib.ISession,
+                            snapshot_details: list,
+                            number_to_retain: int) -> None:
     """
     Attempts to delete oldest snapshots from specified machine.
 
-    :param str machine_name: machine name to search for
-    :param int number_to_retain: number of newest snapshots to retain
+    Exits prematurely when:
+    1. Virtual Machine does not have any snapshots
+    2. Amount of snapshots to retain resulted in 0 or below
+
+    :param virtualbox.lib.IMachine virtual_machine: virtual machine class
+    :param virtualbox.lib.ISession session: virtual machine session
+    :param list snapshot_details: list of available snapshots and their details
+    :param int number_to_retain: number of snapshots to retain
     :return: None
     """
-    virtual_machine, snapshot_details = load_vm_and_snapshot_details(machine_name)
     if snapshot_details is None:
-        # Virtual machine has no snapshots. Hence, nothing to delete
+        logger.info("Snapshot deletion skipped. Reason: No snapshots found")
         return
 
     logger.info("Overall list of snapshot:")
@@ -58,21 +66,20 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
         # TODO: This may potentially be slow when being run with thousands of records
         snapshot_details = [snapshot for snapshot in snapshot_details if snapshot[0] not in uuids_to_retain]
 
-    if number_to_retain > len(snapshot_details):
-        logger.warning("Number of snapshots to be retained is bigger then number of available snapshots. "
-                       "Snapshot deletion aborted. Snapshot creation will proceed.")
+    if number_to_retain >= len(snapshot_details):
+        logger.info("Snapshot deletion skipped. Reason: "
+                    "Number of snapshots to be retained is bigger then number of available snapshots")
         return
 
     # Removing number of snapshots from the list of snapshots to be deleted
     snapshot_details = snapshot_details[:len(snapshot_details) - number_to_retain]
 
-    logger.info("List of snapshots to be deleted:")
-
     if len(snapshot_details) == 0:
         # In case all existing snapshots to be retained
-        logger.info("None")
+        logger.info("Snapshot deletion skipped. Reason: No snapshots to be deleted found")
         return
 
+    logger.info("List of snapshots to be deleted:")
     for snapshot in snapshot_details:
         logger.info("Snapshot ID: %s, Name: %s", snapshot[0], snapshot[1])
 
@@ -88,23 +95,25 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
     except virtualbox.lib.VBoxError as ex:
         # Exiting application on exception as it may be due to user error (i.e. typo in machine name)
         # Snapshot deletion must not happen in such a case.
-        logger.error("Snapshot deletion aborted prematurely due to VBoxError: 0x%x (%s). "
-                     "Application execution will terminate", ex.value, ex.msg)
+        logger.error("Application is going to terminate. Reason: "
+                     "Snapshot deletion aborted prematurely due to VBoxError: 0x%x (%s)",
+                     ex.value, ex.msg)
         sys.exit()
 
 
-def create_snapshot(machine_name: str) -> bool:
+def create_snapshot(virtual_machine: virtualbox.lib.IMachine,
+                    session: virtualbox.lib.ISession) -> bool:
     """
     Attempts to create a snapshot for a specified machine.
 
-    :param str machine_name: machine name to search for
+    :param virtualbox.lib.IMachine virtual_machine: virtual machine class
+    :param virtualbox.lib.ISession session: virtual machine session
     :return: status of a machine if it was in any state but "Powered Off" initially
     :rtype: bool
     """
     # Assuming that machine is initially in any state but not in "Powered Off"
     vm_running_initially = True
 
-    virtual_machine = vbox.find_machine(machine_name)
     if virtual_machine.state == virtualbox.library.MachineState(1):
         # Check if machine is powered off (MachineState(1) = PowerOff)
         vm_running_initially = False
@@ -177,8 +186,9 @@ def parse_snapshot_ignore_file(filename: str) -> list:
                 uuids.append(clean_line)
 
     except OSError as ex:
-        logger.error("Failed to read snapshot UUID ignore file due to OSError: 0x%x (%s). "
-                     "Application execution will terminate", ex.value, ex.msg)
+        logger.error("Application is going to terminate. Reason: "
+                     "Reading snapshot UUID ignore file failed due to OSError: 0x%x (%s)",
+                     ex.value, ex.msg)
         # Exiting application on exception as it may be due to user error (i.e. typo in ignore filename)
         # Snapshot deletion must not happen in such a case.
         sys.exit()
@@ -186,25 +196,35 @@ def parse_snapshot_ignore_file(filename: str) -> list:
     return uuids
 
 
-def load_vm_and_snapshot_details(machine_name: str) -> tuple[virtualbox.library.IMachine, list]:
+def load_virtual_machine(machine_name: str):
     """
-    Loads virtual machine object and virtual machine snapshots' details.
+    Getting a virtual machine as a class. On error, exits application.
 
-    :param str machine_name: name of a virtual machine
-    :return: virtual machine object and all snapshot details
-    :rtype: tuple
+    :param str machine_name: name of a machine to acquire
+    :rtype: virtualbox.lib.IMachine
+    :return: virtual machine class
     """
-    virtual_machine = virtualbox.library.IMachine()
-    snapshot_details = []
     try:
         # Attach machine
+        vbox = virtualbox.VirtualBox()
         virtual_machine = vbox.find_machine(machine_name)
     except virtualbox.lib.VBoxError as ex:
         # Cannot find a registered machine named `machine_name`
-        logger.error("Cannot find virtual machine '%s' due to VBoxError: 0x%x (%s). "
-                     "Application execution will terminate", machine_name, ex.value, ex.msg)
+        logger.error("Application is going to terminate. Reason: "
+                     "Cannot find virtual machine '%s' due to VBoxError: 0x%x (%s)",
+                     machine_name, ex.value, ex.msg)
         sys.exit()
+    return virtual_machine
 
+
+def load_snapshot_details(virtual_machine: virtualbox.lib.IMachine):
+    """
+    Loads snapshot details from a virtual machine.
+
+    :param virtualbox.lib.IMachine virtual_machine: virtual machine no find snapshots for
+    :rtype: list or None
+    :return: If snapshot(s) exist - found snapshot list, None otherwise
+    """
     # Snapshot ids[0], names[1], descriptions[2] are sorted from oldest (index 0) to newest
     snapshot_details = []
 
@@ -213,9 +233,9 @@ def load_vm_and_snapshot_details(machine_name: str) -> tuple[virtualbox.library.
         snapshot = virtual_machine.find_snapshot("")
     except virtualbox.lib.VBoxError as ex:
         # Machine does not have any snapshots
-        logger.warning("Cannot find and load any snapshots due to VBoxError: 0x%x (%s). "
-                       "Application execution will continue", ex.value, ex.msg)
-        return virtual_machine, None
+        logger.info("Cannot find and load any snapshots due to VBoxError: 0x%x (%s)",
+                    ex.value, ex.msg)
+        return None
 
     snapshot_details.append([snapshot.id_p, snapshot.name, snapshot.description])
 
@@ -226,7 +246,23 @@ def load_vm_and_snapshot_details(machine_name: str) -> tuple[virtualbox.library.
         snapshot = snapshot.children[0]
         snapshot_details.append([snapshot.id_p, snapshot.name, snapshot.description])
 
-    return virtual_machine, snapshot_details
+    return snapshot_details
+
+
+def list_snapshots(machine_name: str, snapshot_details: list):
+    """
+    Prints all available (if any) snapshot details.
+
+    :return: None
+    """
+    if snapshot_details is None:
+        print(f"No snapshots found for '{machine_name}'")
+    else:
+        # Avoiding to use logger here to not clutter output which may be of some use for user
+        print(f"Available snapshots for '{machine_name}':")
+        for snapshot in snapshot_details:
+            print(f"Name: '{snapshot[1]}' UUID: {snapshot[0]}")
+            print(f"\tDescription: {snapshot[2]}")
 
 
 def main():
@@ -238,20 +274,19 @@ def main():
     """
     logger.info("Starting autosnapshotter script ...")
 
+    virtual_machine = load_virtual_machine(args.machine_name)
+    snapshot_details = load_snapshot_details(virtual_machine)
+
+    # All manipulations with virtual machine will happen under same session
+    session = virtualbox.Session()
+
     if args.list:
-        _, snapshot_details = load_vm_and_snapshot_details(args.machine_name)
-        if snapshot_details is None:
-            print(f"No snapshots found for '{args.machine_name}'")
-        else:
-            # Avoiding to use logger here to not clutter output which may be of some use for user
-            print(f"Available snapshots for '{args.machine_name}':")
-            for snapshot in snapshot_details:
-                print(f"Name: '{snapshot[1]}' UUID: {snapshot[0]}")
-                print(f"\tDescription: {snapshot[2]}")
+        list_snapshots(args.machine_name, snapshot_details)
+        # Always exit after running with `-l`/`--list` argument
         return
 
-    delete_oldest_snapshots(args.machine_name, args.retain)
-    vm_status = create_snapshot(args.machine_name)
+    delete_oldest_snapshots(virtual_machine, session, snapshot_details, args.retain)
+    vm_status = create_snapshot(virtual_machine, session)
 
     try:
         if not vm_status:
@@ -273,10 +308,6 @@ if __name__ == "__main__":
 
     # Default log level is WARNING
     logger.setLevel(logging.WARNING)
-
-    # Global placeholders
-    vbox = virtualbox.VirtualBox()
-    session = virtualbox.Session()
 
     # Adding argparse to application
     parser = argparse.ArgumentParser(prog="VirtualBox Snapshotter",
