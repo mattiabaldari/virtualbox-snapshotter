@@ -68,16 +68,11 @@ def delete_oldest_snapshots(virtual_machine: virtualbox.lib.IMachine,
 
     if number_to_retain >= len(snapshot_details):
         logger.info("Snapshot deletion skipped. Reason: "
-                    "Number of snapshots to be retained is bigger then number of available snapshots")
+                    "Number of snapshots to be retained is equal or bigger then number of available snapshots")
         return
 
     # Removing number of snapshots from the list of snapshots to be deleted
     snapshot_details = snapshot_details[:len(snapshot_details) - number_to_retain]
-
-    if len(snapshot_details) == 0:
-        # In case all existing snapshots to be retained
-        logger.info("Snapshot deletion skipped. Reason: No snapshots to be deleted found")
-        return
 
     logger.info("List of snapshots to be deleted:")
     for snapshot in snapshot_details:
