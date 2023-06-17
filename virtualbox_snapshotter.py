@@ -37,9 +37,9 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
     :param int number_to_retain: number of newest snapshots to retain
     :return: None
     """
-
     virtual_machine, snapshot_details = load_vm_and_snapshot_details(machine_name)
-    if not snapshot_details:
+    if snapshot_details is None:
+        # Virtual machine has no snapshots. Hence, nothing to delete
         return
 
     logger.info("Overall list of snapshot:")
@@ -85,10 +85,11 @@ def delete_oldest_snapshots(machine_name: str, number_to_retain: int) -> None:
             logger.info("Deleting snapshot: '%s'...", snapshot[1])
             process.wait_for_completion(timeout=-1)
             logger.info("Deleted snapshot: '%s'", snapshot[1])
-    except virtualbox.lib.VBoxError:
+    except virtualbox.lib.VBoxError as ex:
         # Exiting application on exception as it may be due to user error (i.e. typo in machine name)
         # Snapshot deletion must not happen in such a case.
-        logger.error("Snapshot deletion aborted prematurely", exc_info=True)
+        logger.error("Snapshot deletion aborted prematurely due to VBoxError: 0x%x (%s). "
+                     "Application execution will terminate", ex.value, ex.msg)
         sys.exit()
 
 
@@ -175,9 +176,9 @@ def parse_snapshot_ignore_file(filename: str) -> list:
                 clean_line = no_comment_line.strip()
                 uuids.append(clean_line)
 
-    except OSError:
-        logger.error("Exception while trying to read snapshot UUID ignore file",
-                     exc_info=True)
+    except OSError as ex:
+        logger.error("Failed to read snapshot UUID ignore file due to OSError: 0x%x (%s). "
+                     "Application execution will terminate", ex.value, ex.msg)
         # Exiting application on exception as it may be due to user error (i.e. typo in ignore filename)
         # Snapshot deletion must not happen in such a case.
         sys.exit()
@@ -193,36 +194,37 @@ def load_vm_and_snapshot_details(machine_name: str) -> tuple[virtualbox.library.
     :return: virtual machine object and all snapshot details
     :rtype: tuple
     """
-
     virtual_machine = virtualbox.library.IMachine()
     snapshot_details = []
     try:
-        # Trying to find a machine
+        # Attach machine
         virtual_machine = vbox.find_machine(machine_name)
-
-        # Snapshot ids[0], names[1], descriptions[2] are sorted from oldest (index 0) to newest
-        snapshot_details = []
-        # Getting root snapshot and adding it to a list
-        try:
-            snapshot = virtual_machine.find_snapshot("")
-        except Exception as err:
-            if err.value == 2147614729 and "This machine does not have any snapshots" in err.msg:
-                return virtual_machine, None
-
-        snapshot_details.append([snapshot.id_p, snapshot.name, snapshot.description])
-
-        # Traversing through children snapshots (until one has no children) and adding them to a list
-        while snapshot.children_count != 0:
-            # TODO: Implement multi children scan
-            # This check skips snapshot marked as "Current State"
-            snapshot = snapshot.children[0]
-            snapshot_details.append([snapshot.id_p, snapshot.name, snapshot.description])
-    except virtualbox.lib.VBoxError:
-        # 1. Could not find a registered machine named `machine_name`
-        # 2. Machine does not have any snapshots
-        logger.error("Could not find a registered machine named '%s' or "
-                     "machine does not have any snapshots", machine_name, exc_info=True)
+    except virtualbox.lib.VBoxError as ex:
+        # Cannot find a registered machine named `machine_name`
+        logger.error("Cannot find virtual machine '%s' due to VBoxError: 0x%x (%s). "
+                     "Application execution will terminate", machine_name, ex.value, ex.msg)
         sys.exit()
+
+    # Snapshot ids[0], names[1], descriptions[2] are sorted from oldest (index 0) to newest
+    snapshot_details = []
+
+    try:
+        # Getting root snapshot and adding it to a list
+        snapshot = virtual_machine.find_snapshot("")
+    except virtualbox.lib.VBoxError as ex:
+        # Machine does not have any snapshots
+        logger.warning("Cannot find and load any snapshots due to VBoxError: 0x%x (%s). "
+                       "Application execution will continue", ex.value, ex.msg)
+        return virtual_machine, None
+
+    snapshot_details.append([snapshot.id_p, snapshot.name, snapshot.description])
+
+    # Traversing through children snapshots (until one has no children) and adding them to a list
+    while snapshot.children_count != 0:
+        # TODO: Implement multi children scan
+        # This check skips snapshot marked as "Current State"
+        snapshot = snapshot.children[0]
+        snapshot_details.append([snapshot.id_p, snapshot.name, snapshot.description])
 
     return virtual_machine, snapshot_details
 
@@ -238,16 +240,15 @@ def main():
 
     if args.list:
         _, snapshot_details = load_vm_and_snapshot_details(args.machine_name)
-        # Avoiding to use logger here to not clutter output which may be of some use for user
-        print(f"Available snapshots for '{args.machine_name}':")
-        if not snapshot_details:
-            print(f"0 snapshots")
+        if snapshot_details is None:
+            print(f"No snapshots found for '{args.machine_name}'")
         else:
+            # Avoiding to use logger here to not clutter output which may be of some use for user
+            print(f"Available snapshots for '{args.machine_name}':")
             for snapshot in snapshot_details:
                 print(f"Name: '{snapshot[1]}' UUID: {snapshot[0]}")
                 print(f"\tDescription: {snapshot[2]}")
-            return
-
+        return
 
     delete_oldest_snapshots(args.machine_name, args.retain)
     vm_status = create_snapshot(args.machine_name)
@@ -255,9 +256,10 @@ def main():
     try:
         if not vm_status:
             session.console.power_down()
-    except virtualbox.lib.VBoxError:
+    except virtualbox.lib.VBoxError as ex:
         # Virtual machine must be Running, Paused or Stuck to be powered down.
-        logger.error("Power down of virtual machine execution exited prematurely", exc_info=True)
+        logger.error("Cannot power down virtual machine '%s' due to VBoxError: 0x%x (%s). "
+                     "Application execution will terminate", args.machine_name, ex.value, ex.msg)
         return
 
 
