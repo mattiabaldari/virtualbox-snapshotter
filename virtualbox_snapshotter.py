@@ -227,9 +227,8 @@ def load_snapshot_details(virtual_machine: virtualbox.lib.IMachine):
         # Getting root snapshot and adding it to a list
         snapshot = virtual_machine.find_snapshot("")
     except virtualbox.lib.VBoxError as ex:
-        # Machine does not have any snapshots
-        logger.info("Cannot find and load any snapshots due to VBoxError: 0x%x (%s)",
-                    ex.value, ex.msg)
+        # Machine does not have any snapshots or no snapshots found
+        logger.warning("No snapshots found. Reason: %s", ex.msg)
         return None
 
     snapshot_details.append([snapshot.id_p, snapshot.name, snapshot.description])
