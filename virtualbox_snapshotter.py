@@ -46,7 +46,7 @@ def delete_oldest_snapshots(virtual_machine: virtualbox.lib.IMachine,
     :param int number_to_retain: number of snapshots to retain
     :return: None
     """
-    if snapshot_details is None:
+    if not snapshot_details:
         logger.info("Snapshot deletion skipped. Reason: No snapshots found")
         return
 
@@ -191,7 +191,7 @@ def parse_snapshot_ignore_file(filename: str) -> list:
     return uuids
 
 
-def load_virtual_machine(machine_name: str):
+def load_virtual_machine(machine_name: str) -> virtualbox.lib.IMachine:
     """
     Getting a virtual machine as a class. On error, exits application.
 
@@ -212,13 +212,13 @@ def load_virtual_machine(machine_name: str):
     return virtual_machine
 
 
-def load_snapshot_details(virtual_machine: virtualbox.lib.IMachine):
+def load_snapshot_details(virtual_machine: virtualbox.lib.IMachine) -> list:
     """
     Loads snapshot details from a virtual machine.
 
     :param virtualbox.lib.IMachine virtual_machine: virtual machine no find snapshots for
-    :rtype: list or None
-    :return: If snapshot(s) exist - found snapshot list, None otherwise
+    :rtype: list
+    :return: If snapshot(s) exist - found snapshot list, empty list otherwise
     """
     # Snapshot ids[0], names[1], descriptions[2] are sorted from oldest (index 0) to newest
     snapshot_details = []
@@ -229,7 +229,7 @@ def load_snapshot_details(virtual_machine: virtualbox.lib.IMachine):
     except virtualbox.lib.VBoxError as ex:
         # Machine does not have any snapshots or no snapshots found
         logger.warning("No snapshots found. Reason: %s", ex.msg)
-        return None
+        return []
 
     snapshot_details.append([snapshot.id_p, snapshot.name, snapshot.description])
 
@@ -243,13 +243,13 @@ def load_snapshot_details(virtual_machine: virtualbox.lib.IMachine):
     return snapshot_details
 
 
-def list_snapshots(machine_name: str, snapshot_details: list):
+def list_snapshots(machine_name: str, snapshot_details: list) -> None:
     """
     Prints all available (if any) snapshot details.
 
     :return: None
     """
-    if snapshot_details is None:
+    if not snapshot_details:
         print(f"No snapshots found for '{machine_name}'")
     else:
         # Avoiding to use logger here to not clutter output which may be of some use for user
