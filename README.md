@@ -121,6 +121,13 @@ This will list all snapshots (if any) and their details (name, UUID, date) for s
 python virtualbox_snapshotter.py "My awesome VM" -l
 ```
 
+## Return codes
+
+Whenever script exits (expectedly or unexpectedly), it will send specific exit code:
+
+- `0` indicates all requested operation completed successfully
+- Any other number indicates the error code that triggered script to terminate prematurely
+
 ## Scheduling
 
 The script itself does not provide an ability to schedule when it should be run. However, most mainstream operating systems provide an ability to schedule tasks:
