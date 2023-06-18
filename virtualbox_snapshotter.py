@@ -93,7 +93,7 @@ def delete_oldest_snapshots(virtual_machine: virtualbox.lib.IMachine,
         logger.error("Application is going to terminate. Reason: "
                      "Snapshot deletion aborted prematurely due to VBoxError: 0x%x (%s)",
                      ex.value, ex.msg)
-        sys.exit()
+        sys.exit(ex.value)
 
 
 def create_snapshot(virtual_machine: virtualbox.lib.IMachine,
@@ -179,14 +179,13 @@ def parse_snapshot_ignore_file(filename: str) -> list:
                 # Removing whitespaces from processed line
                 clean_line = no_comment_line.strip()
                 uuids.append(clean_line)
-
     except OSError as ex:
         logger.error("Application is going to terminate. Reason: "
-                     "Reading snapshot UUID ignore file failed due to OSError: 0x%x (%s)",
-                     ex.value, ex.msg)
+                     "Reading snapshot UUID ignore file failed due to OSError: %x (%s)",
+                     ex.errno, ex.strerror)
         # Exiting application on exception as it may be due to user error (i.e. typo in ignore filename)
         # Snapshot deletion must not happen in such a case.
-        sys.exit()
+        sys.exit(ex.strerror)
 
     return uuids
 
@@ -208,7 +207,7 @@ def load_virtual_machine(machine_name: str) -> virtualbox.lib.IMachine:
         logger.error("Application is going to terminate. Reason: "
                      "Cannot find virtual machine '%s' due to VBoxError: 0x%x (%s)",
                      machine_name, ex.value, ex.msg)
-        sys.exit()
+        sys.exit(ex.value)
     return virtual_machine
 
 
@@ -277,7 +276,7 @@ def main():
     if args.list:
         list_snapshots(args.machine_name, snapshot_details)
         # Always exit after running with `-l`/`--list` argument
-        return
+        sys.exit(0)
 
     delete_oldest_snapshots(virtual_machine, session, snapshot_details, args.retain)
     vm_status = create_snapshot(virtual_machine, session)
@@ -289,7 +288,9 @@ def main():
         # Virtual machine must be Running, Paused or Stuck to be powered down.
         logger.error("Cannot power down virtual machine '%s' due to VBoxError: 0x%x (%s). "
                      "Application execution will terminate", args.machine_name, ex.value, ex.msg)
-        return
+        sys.exit(ex.value)
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":
