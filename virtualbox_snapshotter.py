@@ -252,7 +252,7 @@ def list_snapshots(machine_name: str, snapshot_details: list) -> None:
         print(f"No snapshots found for '{machine_name}'")
     else:
         # Avoiding to use logger here to not clutter output which may be of some use for user
-        print(f"Available snapshots for '{machine_name}':")
+        print(f"Available snapshots for '{machine_name}': ")
         for snapshot in snapshot_details:
             print(f"Name: '{snapshot[1]}' UUID: {snapshot[0]}")
             print(f"\tDescription: {snapshot[2]}")
