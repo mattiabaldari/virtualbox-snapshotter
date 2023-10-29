@@ -1,4 +1,4 @@
-name: "CI"
+name: "Code checks"
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ on:
 
 jobs:
   running_tests:
-    name: "Linter"
+    name: "Prospector"
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
