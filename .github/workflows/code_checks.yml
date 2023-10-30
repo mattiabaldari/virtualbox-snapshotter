@@ -1,0 +1,32 @@
+name: "Code checks"
+
+on:
+  pull_request:
+    branches:
+    - main
+    - master
+  push:
+    branches:
+    - main
+    - master
+
+jobs:
+  running_tests:
+    name: "Prospector"
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.x"
+        check-latest: true
+        cache: 'pip'
+        cache-dependency-path: '**/requirements_dev.txt'
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements_dev.txt
+    - name: Analyse Python code with Prospector
+      run: |
+        prospector -X $(git ls-files '*.py')

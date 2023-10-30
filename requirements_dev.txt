@@ -1,2 +1,2 @@
 -r requirements.txt
-prospector==1.9.0
+prospector==1.10.3
